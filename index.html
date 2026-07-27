@@ -1267,6 +1267,15 @@ body.erasing .pen-hud{
 
 
 .template-axis,.template-timeline,.thumb-axis,.thumb-timeline,.label-edit-action{display:none!important}
+
+/* Destructive room and board actions */
+#deleteCurrentBoard,#deleteSharedUrl{margin-top:10px}
+#deleteSharedUrl:disabled,#deleteCurrentBoard:disabled{
+  color:#aab0b8;
+  background:#f4f5f7;
+  border-color:transparent;
+}
+
 </style>
 </head>
 <body>
@@ -1332,7 +1341,8 @@ body.erasing .pen-hud{
     <button id="duplicateStructure" class="panel-action">背景を複製</button>
     <button id="duplicateFull" class="panel-action">付箋・描線も含めて複製</button>
     <button id="openBoardListPanel" class="panel-action">ボード一覧を開く</button>
-    <button id="deleteAll" class="panel-action danger destructive-action">このボードを空にする</button>
+    <button id="deleteAll" class="panel-action danger">このボードを空にする</button>
+    <button id="deleteCurrentBoard" class="panel-action danger destructive-action">このボードを削除</button>
   </section>
   <section class="section section-lesson"><h3>授業</h3>
     <div id="lessonStatusCard" class="lesson-status-card"></div>
@@ -1347,6 +1357,7 @@ body.erasing .pen-hud{
   <section class="section section-share"><h3>共有</h3>
     <button id="createRoom" class="panel-action">共有ルームを作成</button>
     <button id="panelShare" class="panel-action">生徒用URLを表示</button>
+    <button id="deleteSharedUrl" class="panel-action danger destructive-action">このURLを削除</button>
     <button id="firebaseSettings" class="panel-action secondary-config">Firebase設定を確認・変更</button>
     <div class="connection-row"><span>Firebase</span><strong>設定済み</strong></div><div class="connection-row"><span>接続</span><strong id="participantCount">—</strong></div>
   </section>
@@ -1776,7 +1787,10 @@ $("nextBoard").disabled=state.current===state.boards.length-1;
 $("canvasMode").textContent=(navigator.maxTouchPoints>0?"空白を2回タップ":"空白をダブルクリック")+"で追加　・　ドラッグで移動";
 updateLessonUi();
 renderTemplates();
-const boardLimit=state.boards.length>=25;$("duplicateStructure").disabled=boardLimit;$("duplicateFull").disabled=boardLimit;populateBoardCountSelect();updateBoardSummary();
+const boardLimit=state.boards.length>=25;$("duplicateStructure").disabled=boardLimit;$("duplicateFull").disabled=boardLimit;
+$("deleteCurrentBoard").disabled=state.boards.length<=1;
+$("deleteSharedUrl").disabled=!(state.remote.ready&&isTeacher());
+populateBoardCountSelect();updateBoardSummary();
 safeSave();
 applyTransform();
 if(state.lastCreatedNoteId){const created=state.lastCreatedNoteId;setTimeout(()=>{if(state.lastCreatedNoteId===created)state.lastCreatedNoteId=null},420)}
@@ -2019,6 +2033,33 @@ async function removeRemoteBoardData(boardIds){
   if(!state.remote.ready||!boardIds.length)return;
   await Promise.all(boardIds.flatMap(bid=>[remoteDeleteBoardNotes(bid),remoteClearBoardDrawings(bid)]))
 }
+
+async function deleteBoardRemote(boardId){
+  if(!state.remote.ready||!isTeacher())return;
+  const a=state.remote.api,root=a.ref(state.remote.db),room=state.remote.roomId,updates={};
+  const notesSnap=await a.get(a.ref(state.remote.db,`rooms/${room}/notes`));
+  Object.entries(notesSnap.val()||{}).forEach(([nid,n])=>{if(n.boardId===boardId)updates[`rooms/${room}/notes/${nid}`]=null});
+  const drawingsSnap=await a.get(a.ref(state.remote.db,`rooms/${room}/drawings`));
+  Object.entries(drawingsSnap.val()||{}).forEach(([sid,s])=>{if(s.boardId===boardId)updates[`rooms/${room}/drawings/${sid}`]=null});
+  updates[`rooms/${room}/meta/boards/${boardId}`]=null;
+  state.boards.forEach((b,i)=>updates[`rooms/${room}/meta/boards/${b.id}/index`]=i);
+  updates[`rooms/${room}/meta/updatedAt`]=Date.now();
+  await a.update(root,updates)
+}
+async function deleteSharedRoom(){
+  if(!state.remote.ready||!isTeacher())throw new Error("共有URLの管理者ではありません");
+  const a=state.remote.api,db=state.remote.db,room=state.remote.roomId;
+  state.remote.unsubs.forEach(u=>{try{u&&u()}catch{}});
+  state.remote.unsubs=[];
+  try{if(state.remote.presenceRef)await a.remove(state.remote.presenceRef)}catch{}
+  await a.remove(a.ref(db,`rooms/${room}`));
+  state.remote.ready=false;state.remote.roomId=null;state.remote.ownerUid=null;state.remote.locks=new Map();
+  history.replaceState(null,"",location.href.split("#")[0]);
+  setSyncBadge("online","接続可能");
+  $("participantCount").textContent="—";
+  safeSave();render()
+}
+
 function requestBoardCount(target){
   target=clamp(Number(target)||1,1,25);const current=state.boards.length;
   if(target===current)return;
@@ -2105,6 +2146,21 @@ $("deleteAll").onclick=()=>{
     const bid=board().id;board().notes=[];board().drawings=[];deselect();render();await Promise.all([remoteDeleteBoardNotes(bid),remoteClearBoardDrawings(bid)]);toast("ボードを空にしました")
   })
 };
+
+$("deleteCurrentBoard").onclick=()=>{
+  if(!isTeacher())return toast("管理者だけが削除できます");
+  if(state.boards.length<=1)return toast("最後のボードは削除できません");
+  const target=board(),notes=target.notes?.length||0,drawings=target.drawings?.length||0;
+  const detail=[`「${target.name}」を削除します`,notes?`付箋${notes}枚`:"",drawings?`描線${drawings}本`:""].filter(Boolean).join("。")+"。この操作は元に戻せません。";
+  openConfirm("このボードを削除",detail,async()=>{
+    const idToDelete=target.id,index=state.current;
+    state.boards.splice(index,1);state.current=Math.min(index,state.boards.length-1);
+    deselect();closePanel();render();comfortableView();
+    try{await deleteBoardRemote(idToDelete);toast("ボードを削除しました")}
+    catch(e){console.error(e);toast("共有側のボード削除に失敗しました")}
+  })
+};
+
 $("prevBoard").onclick=()=>switchBoard(state.current-1);$("nextBoard").onclick=()=>switchBoard(state.current+1);function switchBoard(i){if(i<0||i>=state.boards.length)return;finishDrawing(true);finishErasing(true);state.current=i;deselect();if(!board().notes.length)comfortableView();render()}
 async function moveBoard(from,to){
   if(to<0||to>=state.boards.length||from===to)return;const activeId=board().id;
@@ -2143,6 +2199,19 @@ function showShare(){
 $("panelShare").onclick=showShare;
 $("copyUrl").onclick=async()=>{const url=studentUrl();if(!url)return toast("先に共有ルームを作成してください");try{await navigator.clipboard.writeText(url);toast("URLをコピーしました")}catch{toast("URLを選択してコピーしてください")}};
 $("createRoom").onclick=createRemoteRoom;
+
+$("deleteSharedUrl").onclick=()=>{
+  if(!state.remote.ready)return toast("削除する共有URLがありません");
+  if(!isTeacher())return toast("このURLを削除できるのは作成した管理者だけです");
+  openConfirm("このURLを削除","この共有URLを無効にします。参加者は以後このボードを開けなくなります。",()=>{
+    openConfirm("本当にURLを削除しますか","共有ルーム内の付箋・描線・ボード情報もFirebaseから削除されます。この操作は元に戻せません。",async()=>{
+      closePanel();
+      try{await deleteSharedRoom();toast("共有URLを削除しました。端末内の内容は残っています")}
+      catch(e){console.error(e);toast("共有URLを削除できませんでした")}
+    })
+  })
+};
+
 $("firebaseSettings").onclick=()=>{$("firebaseConfigInput").value=localStorage.getItem("wb-firebase-config")||"";$("firebaseModal").classList.remove("hidden")};
 function closeFirebaseModal(){$("firebaseModal").classList.add("hidden")}
 $("firebaseCancel").onclick=closeFirebaseModal;document.querySelector(".firebase-close").onclick=closeFirebaseModal;
