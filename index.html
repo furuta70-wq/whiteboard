@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>共同ホワイトボード</title>
+<title>ホワイトボード</title>
 <style>
 :root{
   --ink:#20242b;--muted:#747b86;--line:#e2e5ea;--panel:#fff;--app:#e9edf2;
@@ -656,13 +656,51 @@ body.student-lesson-ended .note,body.student-lesson-ended .viewport{cursor:defau
 
 .secondary-config{color:#66707d}
 .connection-row strong{font-variant-numeric:tabular-nums}
+
+/* Bright canvas and tablet browser-zoom safeguards */
+:root{--app:#f4f6f9;--line:#e7eaf0}
+html,body{background:#f4f6f9;overscroll-behavior:none;-webkit-text-size-adjust:100%;touch-action:none}
+body{background:linear-gradient(180deg,#f8f9fb 0%,#f2f5f8 100%)}
+.viewport{
+  background:
+    radial-gradient(circle at 50% 22%,rgba(255,255,255,.98),rgba(255,255,255,.50) 42%,transparent 70%),
+    linear-gradient(180deg,#f4f6f8,#eef2f6)
+}
+.world{
+  background:#fff;
+  border-color:rgba(230,234,240,.95);
+  box-shadow:0 20px 68px rgba(31,39,50,.11),0 2px 0 rgba(255,255,255,.98) inset
+}
+.template-blank,.thumb-blank{background:#fff}
+.template-grid-bg,.thumb-grid-bg,.template-timeline,.thumb-timeline{background-color:#fff}
+.template-grid-bg,.thumb-grid-bg{
+  background-image:
+    linear-gradient(rgba(186,195,206,.16) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(186,195,206,.16) 1px,transparent 1px),
+    linear-gradient(rgba(167,178,191,.19) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(167,178,191,.19) 1px,transparent 1px)
+}
+.template-timeline,.thumb-timeline{
+  background-image:
+    linear-gradient(rgba(186,195,206,.15) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(186,195,206,.15) 1px,transparent 1px),
+    linear-gradient(rgba(167,178,191,.18) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(167,178,191,.18) 1px,transparent 1px)
+}
+button,.note,input,textarea,select{touch-action:manipulation}
+.viewport,.world,.notes-layer,.drawing-layer{touch-action:none}
+@media(hover:none),(pointer:coarse){
+  html,body{position:fixed;inset:0;width:100%;height:100%}
+  input,textarea,select{font-size:16px!important}
+}
+
 </style>
 </head>
 <body>
 <div id="connectionOverlay" class="connection-overlay hidden"><div class="connection-card"><div class="connection-spinner"></div><h2 id="connectionTitle">共有ルームへ接続中</h2><p id="connectionMessage">しばらくお待ちください。</p><button id="connectionRetry" class="primary-btn hidden">もう一度接続</button></div></div>
 <header class="topbar">
   <div class="brand">
-    <button id="titleButton" class="title-button" title="タイトルを変更"><span id="roomTitle">無題のボード</span><span class="pencil">✎</span></button>
+    <button id="titleButton" class="title-button" title="タイトルを変更"><span id="roomTitle">ホワイトボード</span><span class="pencil">✎</span></button>
     <span id="syncBadge" class="sync-badge local">この端末のみ</span><span id="sessionChip" class="session-chip hidden"></span>
   </div>
   <nav class="board-nav" aria-label="ボード切り替え">
@@ -767,9 +805,9 @@ body.student-lesson-ended .note,body.student-lesson-ended .viewport{cursor:defau
   <div class="lesson-ended-card"><span class="lesson-ended-mark">✓</span><h2>この授業は終了しました</h2><p>内容は閲覧できます。教師が再開すると、再び操作できるようになります。</p></div>
 </div>
 
-<div id="shareModal" class="modal-scrim hidden"><div class="modal"><div class="modal-head"><h2>生徒に共有</h2><button class="icon-btn modal-close">×</button></div><p id="shareHelp" class="muted">生徒はこのURLを開くだけで参加できます。</p><div id="shareUrl" class="share-box"></div><button id="copyUrl" class="primary-btn wide">URLをコピー</button></div></div>
+<div id="shareModal" class="modal-scrim hidden"><div class="modal"><div class="modal-head"><h2>生徒に共有</h2><button class="icon-btn modal-close">×</button></div><p id="shareHelp" class="muted">生徒はこの短いURLを開くだけで参加できます。</p><div id="shareUrl" class="share-box"></div><button id="copyUrl" class="primary-btn wide">URLをコピー</button></div></div>
 
-<div id="firebaseModal" class="modal-scrim hidden"><div class="modal"><div class="modal-head"><h2>Firebase接続設定</h2><button class="icon-btn firebase-close">×</button></div>
+<div id="firebaseModal" class="modal-scrim hidden"><div class="modal"><div class="modal-head"><h2>Firebase接続設定（上書き）</h2><button class="icon-btn firebase-close">×</button></div>
 <p class="muted">Firebaseコンソールの「ウェブアプリの設定」に表示される <code>firebaseConfig</code> の中身をJSON形式で貼り付けます。匿名認証とRealtime Databaseを有効にしてください。</p>
 <textarea id="firebaseConfigInput" class="config-input" spellcheck="false" placeholder='{"apiKey":"...","authDomain":"...","databaseURL":"...","projectId":"...","appId":"..."}'></textarea>
 <div class="modal-actions"><button id="firebaseClear" class="plain-btn">設定を削除</button><button id="firebaseCancel" class="plain-btn">中止</button><button id="firebaseSave" class="primary-btn">保存して接続</button></div>
@@ -781,6 +819,23 @@ body.student-lesson-ended .note,body.student-lesson-ended .viewport{cursor:defau
 
 <script>
 (()=>{"use strict";
+
+function installTabletZoomGuard(){
+  const stop=e=>e.preventDefault();
+  document.addEventListener("gesturestart",stop,{passive:false});
+  document.addEventListener("gesturechange",stop,{passive:false});
+  document.addEventListener("gestureend",stop,{passive:false});
+  document.addEventListener("touchmove",e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
+  let lastTouchEnd=0;
+  document.addEventListener("touchend",e=>{
+    const target=e.target;
+    if(target?.closest?.("input,textarea,select,[contenteditable=true]")){lastTouchEnd=0;return}
+    const now=Date.now();
+    if(now-lastTouchEnd<320)e.preventDefault();
+    lastTouchEnd=now;
+  },{passive:false});
+}
+installTabletZoomGuard();
 const COLORS=["#fff09a","#bfe2ff","#c9efc3","#ffd0dc","#ded0ff"];
 const TEMPLATES=[["blank","無地"],["grid-bg","方眼"],["two-col","二分割"],["quadrant","四分割"],["axis","二軸"],["timeline","時系列"]];
 const CLIENT_ID=(()=>{try{let id=sessionStorage.getItem("wb-client");if(!id){id=crypto.randomUUID();sessionStorage.setItem("wb-client",id)}return id}catch{return "local"}})();
@@ -824,7 +879,7 @@ function safeLoad(){try{
     });
     state.boards=d.boards;
     state.current=Math.min(d.current||0,d.boards.length-1);
-    $("roomTitle").textContent=d.title||"無題のボード";state.session=d.session||state.session;
+    $("roomTitle").textContent=d.title||"ホワイトボード";state.session=d.session||state.session;
   }
 }catch{}}
 function safeSave(){
@@ -1456,12 +1511,11 @@ $("titleButton").onclick=()=>openTextDialog("授業名を変更",$("roomTitle").
 function studentUrl(){
   const rid=state.remote.roomId||ROOM_ID;
   if(!rid)return "";
-  const cfg=firebaseConfig(),token=cfg?encodeConfig(cfg):"";
-  return location.href.split("#")[0]+`#room=${rid}&role=student${token?"&cfg="+token:""}`;
+  return location.href.split("#")[0]+`#room=${rid}&role=student`;
 }
 function showShare(){
   const url=studentUrl();
-  $("shareHelp").textContent=url?"生徒はこのURLを開くだけで参加できます。":"先に「共有ルームを作成」を押してください。";
+  $("shareHelp").textContent=url?"生徒はこの短いURLを開くだけで参加できます。":"先に「共有ルームを作成」を押してください。";
   $("shareUrl").textContent=url||"共有ルームがまだありません";
   $("shareModal").classList.remove("hidden")
 }
