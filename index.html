@@ -29,7 +29,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px soli
 .viewport{position:fixed;inset:60px 0 0 0;overflow:hidden;background:radial-gradient(circle at 50% 40%,#f4f6f8 0,#e5e9ee 72%);touch-action:none;cursor:grab}.viewport.is-panning{cursor:grabbing}
 .world{position:absolute;width:var(--world-w);height:var(--world-h);transform-origin:0 0;background:#fbfbfa;box-shadow:0 18px 60px rgba(35,42,52,.17);overflow:hidden}
 .template-layer,.label-layer,.notes-layer{position:absolute;inset:0}.template-layer,.label-layer{pointer-events:none}.notes-layer{z-index:4}
-.empty-state{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:2;display:grid;justify-items:center;gap:10px;color:#a1a7b0;pointer-events:none;text-align:center}.empty-icon{width:58px;height:48px;border-radius:8px;background:#fff0a0;box-shadow:0 7px 18px rgba(35,42,52,.09);transform:rotate(-2deg)}.empty-state strong{font-size:20px;color:#89909b}.empty-state span{font-size:13px}
+.empty-state{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;display:grid;justify-items:center;gap:6px;pointer-events:none;text-align:center;opacity:.78;animation:emptyGuideIn .42s cubic-bezier(.22,.78,.22,1) both}.empty-state strong{font-size:18px;line-height:1.25;color:#727c89;font-weight:760;letter-spacing:.01em}.empty-state span{font-size:12px;line-height:1.45;color:#9aa3af;font-weight:560}@keyframes emptyGuideIn{from{opacity:0;transform:translate(-50%,calc(-50% + 6px))}to{opacity:.78;transform:translate(-50%,-50%)}}
 
 /* notes */
 .note{position:absolute;width:188px;min-height:116px;padding:15px 15px 14px;border-radius:9px;border:1px solid rgba(50,55,64,.08);box-shadow:0 5px 14px rgba(36,40,48,.13);font-size:16px;line-height:1.45;white-space:pre-wrap;word-break:break-word;user-select:none;touch-action:none;cursor:grab;transition:box-shadow .14s,transform .14s,outline-color .14s}.note.short-text{font-size:18px;display:flex;align-items:flex-start}.note:hover{box-shadow:0 8px 20px rgba(36,40,48,.16)}.note.selected{outline:3px solid rgba(49,94,251,.40);outline-offset:3px}.note.dragging{z-index:999999!important;cursor:grabbing;transform:scale(1.025) rotate(.25deg);box-shadow:0 18px 34px rgba(36,40,48,.23);transition:none}.note.remote-locked{outline:3px dashed rgba(78,86,99,.4);outline-offset:3px;cursor:not-allowed}.note.bump{animation:bump .2s linear}@keyframes bump{0%,100%{transform:translateX(0)}35%{transform:translateX(-4px)}70%{transform:translateX(4px)}}
@@ -406,7 +406,7 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .pen-color.active{background:#edf0f5}.pen-color.active:after{content:"";position:absolute;inset:4px;border:2px solid #8793a2;border-radius:9px}
 .pen-divider{width:1px;height:27px;background:#dde1e7;margin:0 3px}
 .viewport.pen-active{cursor:crosshair}.viewport.pen-active .notes-layer{pointer-events:none}.viewport.pen-active .empty-state{display:none!important}
-@media(max-width:800px),(hover:none),(pointer:coarse){.pen-hud{left:calc(12px + env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom));padding:5px}.pen-tool,.pen-color{width:38px;height:38px}}
+@media(max-width:800px),(hover:none),(pointer:coarse){.pen-hud{left:calc(12px + env(safe-area-inset-left));bottom:calc(14px + env(safe-area-inset-bottom));padding:5px}.pen-tool,.pen-color{width:44px;height:44px}}
 
 
 .eraser-tool{position:relative}
@@ -694,6 +694,433 @@ button,.note,input,textarea,select{touch-action:manipulation}
   input,textarea,select{font-size:16px!important}
 }
 
+
+@media(max-width:800px){
+  .empty-state{top:49%;gap:5px;opacity:.72}
+  .empty-state strong{font-size:17px}
+  .empty-state span{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.empty-state{animation:none}}
+
+
+/* Experience polish pass */
+:root{
+  --motion-fast:140ms;
+  --motion-ui:220ms;
+  --motion-view:380ms;
+  --surface:#fffefa;
+  --surface-line:rgba(209,216,225,.9);
+}
+html,body{background:#edf1f5}
+button{-webkit-tap-highlight-color:transparent}
+button:active{transform:scale(.96)}
+.topbar{
+  height:62px;
+  grid-template-columns:minmax(250px,1fr) auto minmax(130px,1fr);
+  padding:0 18px;
+  gap:16px;
+  background:rgba(255,255,255,.93);
+  border-bottom:1px solid rgba(213,219,227,.9);
+  box-shadow:0 5px 20px rgba(29,36,47,.045);
+}
+.brand{gap:5px}
+.title-button{
+  padding:9px 11px;
+  font-size:15px;
+  font-weight:790;
+  letter-spacing:-.01em;
+}
+.mode-chip{
+  height:24px;
+  padding:0 8px;
+  background:#f0f3f7;
+  color:#7b8491;
+  font-size:10px;
+  font-weight:740;
+  box-shadow:none;
+}
+.board-nav{gap:5px}
+.board-current{
+  min-width:148px;
+  font-size:15px;
+  font-weight:800;
+  color:#222832;
+}
+.board-count{
+  color:#a0a7b1;
+  font-size:11px;
+  font-weight:650;
+}
+.board-nav .icon-btn{color:#9aa2ad}
+.board-nav .icon-btn:disabled{opacity:.28}
+.plain-btn{color:#4e5661;font-weight:700}
+.manage-btn{height:42px;border-radius:12px}
+.viewport{
+  inset:62px 0 0;
+  background:
+    radial-gradient(circle at 50% 22%,rgba(255,255,255,.72),transparent 38%),
+    linear-gradient(180deg,#f4f6f8,#eef1f4);
+}
+.world{
+  background:var(--surface);
+  border:1px solid rgba(220,225,231,.95);
+  box-shadow:0 14px 42px rgba(38,46,57,.095);
+}
+.template-grid-bg{
+  background-color:var(--surface);
+  background-image:
+    linear-gradient(rgba(176,185,196,.12) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(176,185,196,.12) 1px,transparent 1px),
+    linear-gradient(rgba(164,174,186,.16) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(164,174,186,.16) 1px,transparent 1px);
+}
+.template-timeline,.thumb-timeline{
+  background-color:var(--surface);
+  background-image:
+    linear-gradient(rgba(180,188,199,.11) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(180,188,199,.11) 1px,transparent 1px),
+    linear-gradient(rgba(166,176,188,.15) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(166,176,188,.15) 1px,transparent 1px);
+}
+.empty-state{
+  opacity:.76;
+  gap:4px;
+  transition:opacity var(--motion-ui) ease,transform var(--motion-ui) ease;
+  animation:none!important;
+}
+.empty-state strong{
+  font-size:17px;
+  line-height:1.25;
+  color:#7f8996;
+  font-weight:760;
+}
+.empty-state span{
+  margin-top:1px;
+  font-size:11px;
+  color:#a4acb7;
+}
+.empty-state.guide-dimmed{opacity:.42}
+.empty-state.guide-dismissed{opacity:0;transform:translate(-50%,calc(-50% + 5px));pointer-events:none}
+.note{
+  border-radius:10px;
+  border-color:rgba(55,61,70,.065);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.72) inset,
+    0 5px 15px rgba(36,40,48,.11);
+  transition:
+    box-shadow var(--motion-fast) ease,
+    transform var(--motion-fast) ease,
+    outline-color var(--motion-fast) ease,
+    filter var(--motion-fast) ease;
+}
+.note:hover{box-shadow:0 9px 23px rgba(36,40,48,.145)}
+.note.dragging{
+  transform:translateY(-3px) scale(1.035) rotate(calc(var(--tilt) + .4deg));
+  box-shadow:
+    0 2px 0 rgba(255,255,255,.78) inset,
+    0 23px 46px rgba(36,40,48,.22);
+}
+.note.new-note{animation:noteArrivePolished .32s cubic-bezier(.18,.86,.22,1.12) both}
+@keyframes noteArrivePolished{
+  0%{opacity:0;transform:rotate(var(--tilt)) translateY(8px) scale(.96);filter:brightness(1.04)}
+  65%{opacity:1;transform:rotate(var(--tilt)) translateY(-1px) scale(1.012)}
+  100%{opacity:1;transform:rotate(var(--tilt)) translateY(0) scale(1);filter:brightness(1)}
+}
+.note.just-dropped{animation:noteDropPolished .25s cubic-bezier(.2,.82,.25,1.12)}
+@keyframes noteDropPolished{
+  0%{transform:rotate(var(--tilt)) translateY(-3px) scale(1.03)}
+  65%{transform:rotate(var(--tilt)) translateY(1px) scale(.992)}
+  100%{transform:rotate(var(--tilt)) translateY(0) scale(1)}
+}
+.note.remote-change{animation:remoteSettlePolished .3s ease-out}
+@keyframes remoteSettlePolished{from{opacity:.55;filter:brightness(1.025)}to{opacity:1;filter:brightness(1)}}
+.pen-hud,.view-hud{
+  min-height:56px;
+  padding:6px;
+  border-radius:17px;
+  border:1px solid var(--surface-line);
+  background:rgba(255,255,255,.92);
+  box-shadow:0 13px 38px rgba(28,35,46,.14);
+  backdrop-filter:blur(18px) saturate(1.08);
+}
+.pen-hud{gap:4px}
+.view-hud{gap:3px}
+.pen-tool,.pen-color,.view-hud button{
+  min-width:44px;
+  width:44px;
+  height:44px;
+  border-radius:11px;
+  transition:
+    background var(--motion-fast) ease,
+    transform var(--motion-fast) ease,
+    color var(--motion-fast) ease,
+    box-shadow var(--motion-fast) ease;
+}
+.overview-btn{width:auto!important;min-width:70px;padding:0 11px}
+.view-hud .zoom-value{
+  min-width:68px;
+  width:auto;
+  padding:0 10px;
+  font-weight:780;
+  color:#4e5866;
+}
+.zoom-value.value-pop{animation:zoomValuePop .18s ease-out}
+@keyframes zoomValuePop{0%{transform:scale(.9);opacity:.62}100%{transform:scale(1);opacity:1}}
+.pen-color:before{width:20px;height:20px}
+.pen-color.active:after{
+  inset:4px;
+  border:1.5px solid #6f7c8d;
+  box-shadow:0 0 0 2px rgba(255,255,255,.9) inset;
+}
+.viewport.eraser-active+.eraser-cursor{}
+body.erasing .pen-hud{
+  background:rgba(248,250,253,.96);
+  box-shadow:0 13px 38px rgba(28,35,46,.14),0 0 0 1px rgba(124,139,159,.08) inset;
+}
+.pen-divider,.hud-divider{height:27px;background:#e0e5eb}
+.note-toolbar,.palette{
+  border-radius:14px;
+  border-color:rgba(211,217,225,.94);
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(15px);
+}
+.note-toolbar button{min-height:38px}
+.toast{
+  min-height:42px;
+  border-radius:12px;
+  box-shadow:0 14px 40px rgba(28,34,44,.18);
+}
+@media(max-width:800px),(hover:none),(pointer:coarse){
+  .topbar{
+    height:62px;
+    grid-template-columns:minmax(120px,1fr) auto;
+    padding:0 10px;
+    gap:8px;
+  }
+  .title-button{font-size:14px;padding:8px 7px}
+  .mode-chip{font-size:9px;padding:0 7px}
+  .board-current{min-width:118px;font-size:14px}
+  .pen-hud,.view-hud{
+    min-height:54px;
+    bottom:calc(14px + env(safe-area-inset-bottom));
+    padding:5px;
+    border-radius:16px;
+  }
+  .pen-hud{left:calc(12px + env(safe-area-inset-left))}
+  .view-hud{right:calc(12px + env(safe-area-inset-right))}
+  .pen-tool,.pen-color,.view-hud button{
+    min-width:44px;
+    width:44px;
+    height:44px;
+  }
+  .overview-btn{min-width:44px;padding:0}
+  .view-hud .zoom-value{min-width:64px;padding:0 8px}
+}
+@media(prefers-reduced-motion:reduce){
+  .empty-state,.note,.zoom-value{animation:none!important;transition:none!important}
+}
+
+
+/* Focused experience polish: editor, note toolbar and management panel */
+.editor-backdrop{
+  background:rgba(28,34,44,.26);
+  backdrop-filter:blur(3px);
+  transition:opacity var(--motion-ui) ease;
+}
+.note-editor{
+  width:350px;
+  padding:14px;
+  border-radius:19px;
+  background:rgba(255,255,255,.985);
+  border:1px solid rgba(210,217,226,.94);
+  box-shadow:0 30px 90px rgba(22,28,38,.24),0 1px 0 rgba(255,255,255,.9) inset;
+  animation:editorEnter var(--motion-ui) cubic-bezier(.2,.78,.25,1);
+}
+@keyframes editorEnter{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.editor-head{display:flex;align-items:center;justify-content:space-between;margin:0 1px 11px}
+.editor-head>div{display:flex;align-items:baseline;gap:8px}
+.editor-head strong{font-size:15px;color:#29313b}
+.editor-head span{font-size:10px;color:#9aa3af}
+.editor-close{width:34px;height:34px;border-radius:9px;background:transparent;color:#858e9a;font-size:21px;line-height:1}
+.editor-close:hover{background:#eff2f6;color:#434c58}
+.note-editor textarea{
+  height:132px;
+  padding:14px;
+  border:1px solid #e5e9ef;
+  border-radius:13px;
+  background:#f8fafc;
+  font-size:17px;
+  line-height:1.55;
+  caret-color:#315efb;
+  transition:background var(--motion-fast) ease,border-color var(--motion-fast) ease,box-shadow var(--motion-fast) ease;
+}
+.note-editor textarea:focus{background:#fff;border-color:#b4c0e9;box-shadow:0 0 0 4px rgba(49,94,251,.09)}
+.note-editor textarea::placeholder{color:#b2b9c3}
+.editor-meta{margin-top:11px}
+.editor-colors{gap:9px}
+.editor-colors .color-dot{width:31px;height:31px;border:2px solid rgba(36,42,50,.08);transition:transform var(--motion-fast) ease,box-shadow var(--motion-fast) ease}
+.editor-colors .color-dot:hover{transform:translateY(-1px)}
+.editor-colors .color-dot.active{outline:2px solid #798798;outline-offset:3px;box-shadow:0 3px 9px rgba(32,38,48,.12)}
+.char-count{min-width:46px;text-align:right;font-variant-numeric:tabular-nums;transition:color var(--motion-fast) ease,font-weight var(--motion-fast) ease}
+.char-count.near-limit{color:#a46b00;font-weight:760}.char-count.at-limit{color:#b33d4d}
+.editor-actions{padding-top:2px;margin-top:12px;border-top:1px solid #edf0f4}
+.editor-actions button{height:42px;border-radius:11px}
+.editor-actions .primary-btn{min-width:82px}
+.editor-actions .primary-btn:disabled{opacity:.38;cursor:default;filter:none;transform:none!important}
+.note-toolbar{
+  min-height:50px;
+  gap:2px;
+  padding:5px;
+  border-radius:15px;
+  background:rgba(255,255,255,.96);
+  border:1px solid rgba(207,214,223,.95);
+  box-shadow:0 16px 44px rgba(25,31,41,.19);
+  backdrop-filter:blur(16px) saturate(1.08);
+  animation:toolbarEnter var(--motion-fast) ease-out;
+}
+@keyframes toolbarEnter{from{opacity:0;transform:translateY(3px) scale(.98)}to{opacity:1;transform:none}}
+.note-toolbar button{
+  display:flex;align-items:center;gap:6px;
+  height:40px;
+  padding:0 11px;
+  border-radius:10px;
+  color:#4e5864;
+  font-size:12px;
+  font-weight:730;
+}
+.note-toolbar button:hover{background:#eef2f6;color:#252c35}
+.note-toolbar button.danger{color:#a44450}
+.note-toolbar button.danger:hover{background:#fbecef;color:#a12e3d}
+.toolbar-icon{position:relative;width:15px;height:15px;display:inline-block;flex:0 0 15px;color:currentColor}
+.edit-icon:before{content:"";position:absolute;left:2px;top:1px;width:3px;height:12px;border-radius:2px;background:currentColor;transform:rotate(42deg)}
+.edit-icon:after{content:"";position:absolute;left:0;bottom:0;border-left:3px solid transparent;border-right:3px solid transparent;border-top:5px solid currentColor;transform:rotate(42deg)}
+.color-icon{border-radius:50%;background:conic-gradient(#fff09a 0 16.6%,#ffd7a8 16.6% 33.2%,#bfe2ff 33.2% 49.8%,#c9efc3 49.8% 66.4%,#ffd0dc 66.4% 83%,#ded0ff 83% 100%);box-shadow:0 0 0 1px rgba(44,51,60,.12)}
+.delete-icon:before{content:"";position:absolute;left:3px;top:4px;width:9px;height:9px;border:1.6px solid currentColor;border-top:0;border-radius:0 0 2px 2px}
+.delete-icon:after{content:"";position:absolute;left:2px;top:1px;width:11px;height:2px;border-radius:2px;background:currentColor;box-shadow:3px -2px 0 -1px currentColor}
+.toolbar-caret{position:absolute;width:11px;height:11px;background:inherit;border:inherit;transform:rotate(45deg);z-index:-1}
+.note-toolbar.above .toolbar-caret{left:50%;bottom:-6px;border-left:0;border-top:0}
+.note-toolbar.below .toolbar-caret{left:50%;top:-6px;border-right:0;border-bottom:0}
+.palette{padding:9px;border-radius:14px;background:rgba(255,255,255,.97);backdrop-filter:blur(16px);box-shadow:0 16px 42px rgba(25,31,41,.18)}
+.palette .color-dot{width:32px;height:32px}
+.side-panel{
+  width:380px;
+  background:#f7f9fb;
+  border-left:1px solid rgba(215,221,229,.96);
+  box-shadow:-22px 0 70px rgba(26,32,42,.14);
+}
+.panel-head{
+  height:64px;
+  padding:0 18px;
+  background:rgba(255,255,255,.95);
+  border-bottom:1px solid rgba(218,223,231,.92);
+}
+.panel-head h2{font-size:17px;font-weight:800;letter-spacing:-.01em}
+.section{
+  margin:12px 12px 0;
+  padding:15px;
+  border:1px solid #e3e7ed;
+  border-radius:16px;
+  background:rgba(255,255,255,.94);
+  box-shadow:0 4px 16px rgba(31,38,48,.035);
+}
+.section:last-child{margin-bottom:18px}
+.section h3{
+  display:flex;align-items:center;gap:8px;
+  margin:0 0 12px;
+  color:#77818e;
+  font-size:10px;
+  font-weight:820;
+  letter-spacing:.1em;
+}
+.section h3:before{content:"";width:7px;height:7px;border-radius:2px;background:#a9b3c0}
+.section-lesson h3:before{background:#76a88e}.section-save h3:before{background:#8da0c9}.section-share h3:before{background:#9a8fc2}
+.panel-action{
+  min-height:44px;
+  height:auto;
+  margin-top:7px;
+  padding:10px 13px;
+  border:1px solid transparent;
+  border-radius:12px;
+  background:#f5f7fa;
+  color:#4c5662;
+  font-size:13px;
+  font-weight:680;
+  transition:background var(--motion-fast) ease,border-color var(--motion-fast) ease,transform var(--motion-fast) ease;
+}
+.panel-action:hover{background:#edf1f5;border-color:#e0e5ec}
+.panel-action:active{transform:scale(.985)}
+.panel-action.danger{color:#9c3d49;background:#fff7f8}
+.panel-action.danger:hover{background:#fbecee;border-color:#f2d8dc}
+.destructive-action{margin-top:14px;border-top:1px solid #f0dfe2}
+.lesson-status-card{margin-bottom:10px}
+.connection-row{border:1px solid #e6eaf0;background:#f7f9fb}
+.secondary-config{font-size:12px;color:#7d8794;background:transparent}
+.board-count-control{background:#f7f9fb;border-color:#e3e7ed}
+.board-summary{background:#f5f7fa}
+.modal-scrim{backdrop-filter:blur(5px)}
+.modal{border:1px solid rgba(213,219,227,.96)}
+.confirm-actions,.modal-actions{gap:8px}
+@media(max-width:900px){
+  .note-editor{
+    left:10px!important;right:10px!important;
+    width:auto;
+    max-height:min(420px,calc(100vh - 24px));
+    overflow:auto;
+    padding:13px;
+  }
+  .note-editor textarea{height:118px;font-size:16px}
+  .side-panel{width:min(400px,100vw);top:62px}
+  .panel-scrim{inset:62px 0 0}
+  .section{margin:10px 10px 0;padding:14px}
+  .note-toolbar button{min-width:48px;padding:0 9px;justify-content:center}
+  .note-toolbar button span:last-child{display:none}
+}
+@media(max-width:520px){
+  .editor-head span{display:none}
+  .editor-colors{gap:7px}
+  .editor-colors .color-dot{width:29px;height:29px}
+}
+
+
+/* Edit color and deletion in one place */
+.editor-color-section{
+  margin-top:11px;
+  padding:10px 11px;
+  border:1px solid #e8ecf1;
+  border-radius:13px;
+  background:#fafbfd;
+}
+.editor-section-label{
+  display:block;
+  margin-bottom:8px;
+  color:#7b8592;
+  font-size:10px;
+  font-weight:820;
+  letter-spacing:.08em;
+}
+.editor-color-section .editor-meta{margin-top:0}
+.editor-actions{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.editor-action-spacer{flex:1}
+.editor-delete{
+  height:42px;
+  padding:0 11px;
+  border-radius:11px;
+  background:transparent;
+  color:#a13f4c;
+  font-size:12px;
+  font-weight:720;
+}
+.editor-delete:hover{background:#fbecee;color:#972f3d}
+@media(max-width:520px){
+  .editor-actions{display:grid;grid-template-columns:1fr 1fr}
+  .editor-delete{grid-column:1 / -1;justify-self:start}
+  .editor-action-spacer{display:none}
+}
+
 </style>
 </head>
 <body>
@@ -723,8 +1150,8 @@ button,.note,input,textarea,select{touch-action:manipulation}
     <div id="labelLayer" class="label-layer"></div>
     <svg id="drawingLayer" class="drawing-layer" viewBox="0 0 4000 3000" preserveAspectRatio="none" aria-hidden="true"></svg>
     <div id="notesLayer" class="notes-layer"></div>
-    <div id="emptyState" class="empty-state"><div class="empty-icon"></div><strong id="emptyMain">空白をダブルクリック</strong><span>その場所に付箋を置けます</span></div>
   </div>
+  <div id="emptyState" class="empty-state"><strong id="emptyMain">空白をダブルクリック</strong><span>付箋を追加できます</span></div>
 </main>
 
 <div id="penHud" class="pen-hud hidden" aria-label="教師用ペン">
@@ -750,27 +1177,27 @@ button,.note,input,textarea,select{touch-action:manipulation}
 <div id="panelScrim" class="panel-scrim hidden"></div>
 <aside id="sidePanel" class="side-panel" aria-hidden="true">
   <div class="panel-head"><h2>管理</h2><button id="closePanel" class="icon-btn">×</button></div>
-  <section class="section"><h3>背景</h3><div id="templateGrid" class="template-grid"></div><button id="editTemplateLabels" class="panel-action label-edit-action">背景の見出しを編集</button></section>
-  <section class="section"><h3>ボード</h3>
+  <section class="section section-background"><h3>背景</h3><div id="templateGrid" class="template-grid"></div><button id="editTemplateLabels" class="panel-action label-edit-action">背景の見出しを編集</button></section>
+  <section class="section section-board"><h3>ボード</h3>
     <label class="board-count-control" for="boardCountSelect"><span><strong>ボード数</strong><small>1〜25枚</small></span><select id="boardCountSelect" aria-label="ボード数"></select></label>
     <div id="boardSummary" class="board-summary"></div>
     <button id="renameBoard" class="panel-action">現在のボード名を変更</button><button id="batchRenameBoards" class="panel-action">ボード名をまとめて編集</button>
     <button id="duplicateStructure" class="panel-action">背景と見出しを複製</button>
     <button id="duplicateFull" class="panel-action">付箋・描線も含めて複製</button>
     <button id="openBoardListPanel" class="panel-action">ボード一覧を開く</button>
-    <button id="deleteAll" class="panel-action danger">このボードを空にする</button>
+    <button id="deleteAll" class="panel-action danger destructive-action">このボードを空にする</button>
   </section>
-  <section class="section"><h3>授業</h3>
+  <section class="section section-lesson"><h3>授業</h3>
     <div id="lessonStatusCard" class="lesson-status-card"></div>
     <button id="toggleStudentInput" class="panel-action">生徒の付箋追加を停止</button>
-    <button id="toggleLesson" class="panel-action danger">授業を終了</button>
+    <button id="toggleLesson" class="panel-action danger lesson-danger">授業を終了</button>
   </section>
-  <section class="section"><h3>保存</h3>
+  <section class="section section-save"><h3>保存</h3>
     <button id="exportCurrentPng" class="panel-action">現在のボードをPNG保存</button>
     <button id="exportCurrentPdf" class="panel-action">現在のボードをPDF保存</button>
     <button id="exportAllPdf" class="panel-action">全ボードをPDF保存</button>
   </section>
-  <section class="section"><h3>共有</h3>
+  <section class="section section-share"><h3>共有</h3>
     <button id="createRoom" class="panel-action">共有ルームを作成</button>
     <button id="panelShare" class="panel-action">生徒用URLを表示</button>
     <button id="firebaseSettings" class="panel-action secondary-config">Firebase設定を確認・変更</button>
@@ -779,12 +1206,29 @@ button,.note,input,textarea,select{touch-action:manipulation}
 </aside>
 
 <div id="editorBackdrop" class="editor-backdrop hidden"></div>
-<div id="noteEditor" class="note-editor hidden" role="dialog" aria-modal="true">
-  <textarea id="noteText" maxlength="40" placeholder="40字以内で入力"></textarea>
-  <div class="editor-meta"><div id="editorColors" class="editor-colors"></div><span id="charCount" class="char-count">0 / 40</span></div>
-  <div class="editor-actions"><button id="cancelEdit" class="ghost-btn">中止</button><button id="saveEdit" class="primary-btn">貼る</button></div>
+<div id="noteEditor" class="note-editor hidden" role="dialog" aria-modal="true" aria-labelledby="noteEditorTitle">
+  <div class="editor-head">
+    <div><strong id="noteEditorTitle">付箋を追加</strong><span>40字以内</span></div>
+    <button id="editorClose" class="editor-close" aria-label="閉じる">×</button>
+  </div>
+  <textarea id="noteText" maxlength="40" placeholder="ここに入力"></textarea>
+  <div class="editor-color-section">
+    <span class="editor-section-label">色</span>
+    <div class="editor-meta"><div id="editorColors" class="editor-colors" aria-label="付箋の色"></div><span id="charCount" class="char-count">0 / 40</span></div>
+  </div>
+  <div class="editor-actions">
+    <button id="deleteFromEditor" class="editor-delete hidden">この付箋を削除</button>
+    <span class="editor-action-spacer"></span>
+    <button id="cancelEdit" class="ghost-btn">中止</button>
+    <button id="saveEdit" class="primary-btn" disabled>貼る</button>
+  </div>
 </div>
-<div id="noteToolbar" class="note-toolbar hidden"><button data-action="edit">編集</button><button data-action="color">色</button><button data-action="delete" class="danger">削除</button></div>
+<div id="noteToolbar" class="note-toolbar hidden" role="toolbar" aria-label="付箋の操作">
+  <span class="toolbar-caret"></span>
+  <button data-action="edit" aria-label="付箋を編集"><span class="toolbar-icon edit-icon"></span><span>編集</span></button>
+  <button data-action="color" aria-label="付箋の色を変更"><span class="toolbar-icon color-icon"></span><span>色</span></button>
+  <button data-action="delete" class="danger" aria-label="付箋を削除"><span class="toolbar-icon delete-icon"></span><span>削除</span></button>
+</div>
 <div id="palette" class="palette hidden"></div>
 
 <div id="boardModal" class="modal-scrim hidden"><div class="modal large"><div class="modal-head"><h2>ボード一覧</h2><button class="icon-btn modal-close">×</button></div><div id="boardCards" class="board-cards"></div></div></div>
@@ -836,7 +1280,7 @@ function installTabletZoomGuard(){
   },{passive:false});
 }
 installTabletZoomGuard();
-const COLORS=["#fff09a","#bfe2ff","#c9efc3","#ffd0dc","#ded0ff"];
+const COLORS=["#fff09a","#ffd7a8","#bfe2ff","#c9efc3","#ffd0dc","#ded0ff"];
 const TEMPLATES=[["blank","無地"],["grid-bg","方眼"],["two-col","二分割"],["quadrant","四分割"],["axis","二軸"],["timeline","時系列"]];
 const CLIENT_ID=(()=>{try{let id=sessionStorage.getItem("wb-client");if(!id){id=crypto.randomUUID();sessionStorage.setItem("wb-client",id)}return id}catch{return "local"}})();
 const WORLD_W=4000,WORLD_H=3000,NOTE_W=188,NOTE_H=116,STORAGE_VERSION=5;
@@ -855,7 +1299,7 @@ const ROOM_ID=(()=>{const m=location.hash.match(/(?:^#|&)room=([A-Za-z0-9_-]+)/)
 const IS_STUDENT=/(?:^#|&)role=student(?:&|$)/.test(location.hash);
 const HASH_CONFIG=(()=>{try{const m=location.hash.match(/(?:^#|&)cfg=([^&]+)/);if(!m)return null;const s=m[1].replace(/-/g,"+").replace(/_/g,"/");return JSON.parse(decodeURIComponent(escape(atob(s+"=".repeat((4-s.length%4)%4)))))}catch{return null}})();
 const $=id=>document.getElementById(id),viewport=$("viewport"),world=$("world"),notesLayer=$("notesLayer"),drawingLayer=$("drawingLayer"),templateLayer=$("templateLayer"),emptyState=$("emptyState");
-const state={boards:[newBoard("ボード1")],current:0,zoom:1,panX:0,panY:0,selected:null,editorId:null,editorPos:null,editorColor:COLORS[0],noteGesture:null,canvasGesture:null,pointers:new Map(),pinch:null,lastTap:null,deleted:null,toastTimer:null,editorOpenedAt:0,touchOpenedAt:0,textAction:null,confirmAction:null,viewInitialized:false,viewAnimation:null,lastCreatedNoteId:null,lastRemoteSnapshot:new Map(),penColor:null,penMode:"move",drawingGesture:null,eraserGesture:null,session:{status:"active",studentInputOpen:true},exporting:false,
+const state={boards:[newBoard("ボード1")],current:0,zoom:1,panX:0,panY:0,selected:null,editorId:null,editorPos:null,editorColor:COLORS[0],noteGesture:null,canvasGesture:null,pointers:new Map(),pinch:null,lastTap:null,deleted:null,toastTimer:null,editorOpenedAt:0,touchOpenedAt:0,textAction:null,confirmAction:null,viewInitialized:false,viewAnimation:null,lastCreatedNoteId:null,lastRemoteSnapshot:new Map(),penColor:null,penMode:"move",drawingGesture:null,eraserGesture:null,session:{status:"active",studentInputOpen:true},exporting:false,guideTimer:null,guideSeen:new Set(),
 remote:{enabled:false,ready:false,roomId:ROOM_ID,user:null,db:null,api:null,app:null,unsubs:[],locks:new Map(),presenceRef:null,suppress:false,ownerUid:null,pendingRender:false,connected:false}};
 function id(){return crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2)}
 function newBoard(name){return{id:id(),name,template:"blank",labels:{},notes:[],drawings:[]}}
@@ -1137,10 +1581,30 @@ function constrainPan(){
   else state.panY=clamp(state.panY,r.height-margin-scaledH,margin);
 }
 function applyTransform(){constrainPan();world.style.transform=`translate(${state.panX}px,${state.panY}px) scale(${state.zoom})`;
-  $("zoomValue").textContent=Math.round(state.zoom*100)+"%";updateZoomButtons();positionToolbar()}
+  const zv=$("zoomValue"),nextText=Math.round(state.zoom*100)+"%";
+  if(zv.textContent!==nextText){zv.textContent=nextText;zv.classList.remove("value-pop");void zv.offsetWidth;zv.classList.add("value-pop")}
+  updateZoomButtons();positionToolbar()}
 function centerWorld(){const r=viewport.getBoundingClientRect();state.panX=r.width/2-(WORLD_W*state.zoom)/2;state.panY=r.height/2-(WORLD_H*state.zoom)/2;state.viewInitialized=true;applyTransform()}
 function toWorld(x,y){const r=viewport.getBoundingClientRect();return{x:(x-r.left-state.panX)/state.zoom,y:(y-r.top-state.panY)/state.zoom}}
 function noteHeight(n){return Math.max(NOTE_H,28+Math.ceil(n.text.length/11)*23)}
+
+function loadGuideSeen(){
+  try{state.guideSeen=new Set(JSON.parse(localStorage.getItem("wb-guide-seen")||"[]"))}catch{state.guideSeen=new Set()}
+}
+function saveGuideSeen(){try{localStorage.setItem("wb-guide-seen",JSON.stringify([...state.guideSeen]))}catch{}}
+function dismissEmptyGuide(markSeen=true){
+  clearTimeout(state.guideTimer);state.guideTimer=null;
+  emptyState.classList.add("guide-dismissed");
+  if(markSeen&&board()){state.guideSeen.add(board().id);saveGuideSeen()}
+}
+function updateEmptyGuide(){
+  clearTimeout(state.guideTimer);state.guideTimer=null;
+  const show=board().notes.length===0&&!state.guideSeen.has(board().id);
+  emptyState.classList.toggle("hidden",!show);
+  emptyState.classList.remove("guide-dimmed","guide-dismissed");
+  if(show)state.guideTimer=setTimeout(()=>emptyState.classList.add("guide-dimmed"),4000)
+}
+
 function render(){
 closePalette();
 $("penHud").classList.toggle("hidden",!isTeacher());if(!isTeacher()&&state.penMode!=="move")setPen(null);
@@ -1149,7 +1613,7 @@ for(const n of board().notes)notesLayer.appendChild(noteNode(n));
 renderDrawings();
 templateLayer.className=`template-layer template-${board().template}`;
 renderTemplateArt();
-emptyState.classList.toggle("hidden",board().notes.length>0);
+updateEmptyGuide();
 const touchUI=navigator.maxTouchPoints>0||matchMedia("(pointer:coarse)").matches;
 $("canvasMode").classList.toggle("hidden",board().notes.length===0||isTeacher()||touchUI);
 $("boardCurrent").textContent=board().name;
@@ -1267,7 +1731,7 @@ function hashString(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCode
 function noteDown(e){if(e.button!==0)return;if(!canStudentModify()){toast("授業は終了しています");return}e.stopPropagation();closePalette();const n=board().notes.find(x=>x.id===e.currentTarget.dataset.id);if(!n)return;if(n.lock&&n.lock.by!==CLIENT_ID&&n.lock.until>Date.now()){e.currentTarget.classList.add("remote-locked","bump");toast("ほかの人が動かしています");setTimeout(()=>e.currentTarget.classList.remove("bump"),250);return}const p=toWorld(e.clientX,e.clientY);state.noteGesture={id:n.id,node:e.currentTarget,pointerId:e.pointerId,startClientX:e.clientX,startClientY:e.clientY,startWorldX:p.x,startWorldY:p.y,noteX:n.x,noteY:n.y,dragging:false,lockReady:!state.remote.ready,lockDenied:false};
 if(state.remote.ready)acquireRemoteLock(n.id).then(ok=>{if(!state.noteGesture||state.noteGesture.id!==n.id){if(ok)releaseRemoteLock(n.id);return}state.noteGesture.lockReady=ok;state.noteGesture.lockDenied=!ok;if(!ok){toast("ほかの人が動かしています");state.noteGesture=null}});
 e.currentTarget.setPointerCapture(e.pointerId)}
-window.addEventListener("pointermove",e=>{const g=state.noteGesture;if(g&&g.pointerId===e.pointerId){const dx=e.clientX-g.startClientX,dy=e.clientY-g.startClientY;if(!g.dragging&&Math.hypot(dx,dy)>5){if(!g.lockReady)return;const n=board().notes.find(x=>x.id===g.id);if(!n)return;g.dragging=true;n.lock={by:CLIENT_ID,until:Date.now()+2200};n.z=Math.max(1,...board().notes.map(x=>x.z||1))+1;g.node.classList.add("dragging");deselect(false)}if(g.dragging){const n=board().notes.find(x=>x.id===g.id),p=toWorld(e.clientX,e.clientY);if(!n)return;n.x=clamp(g.noteX+(p.x-g.startWorldX),0,WORLD_W-NOTE_W);n.y=clamp(g.noteY+(p.y-g.startWorldY),0,WORLD_H-noteHeight(n));n.lock.until=Date.now()+2200;if(state.remote.ready&&(!g.lastLockRefresh||Date.now()-g.lastLockRefresh>900)){g.lastLockRefresh=Date.now();refreshRemoteLock(n.id)}g.node.style.left=n.x+"px";g.node.style.top=n.y+"px";g.node.style.zIndex=n.z}}});
+window.addEventListener("pointermove",e=>{const g=state.noteGesture;if(g&&g.pointerId===e.pointerId){const dx=e.clientX-g.startClientX,dy=e.clientY-g.startClientY,threshold=e.pointerType==="touch"?9:5;if(!g.dragging&&Math.hypot(dx,dy)>threshold){if(!g.lockReady)return;const n=board().notes.find(x=>x.id===g.id);if(!n)return;g.dragging=true;g.touchLift=e.pointerType==="touch"?34/state.zoom:0;n.lock={by:CLIENT_ID,until:Date.now()+2200};n.z=Math.max(1,...board().notes.map(x=>x.z||1))+1;g.node.classList.add("dragging");deselect(false)}if(g.dragging){const n=board().notes.find(x=>x.id===g.id),p=toWorld(e.clientX,e.clientY);if(!n)return;n.x=clamp(g.noteX+(p.x-g.startWorldX),0,WORLD_W-NOTE_W);n.y=clamp(g.noteY+(p.y-g.startWorldY)-(g.touchLift||0),0,WORLD_H-noteHeight(n));n.lock.until=Date.now()+2200;if(state.remote.ready&&(!g.lastLockRefresh||Date.now()-g.lastLockRefresh>900)){g.lastLockRefresh=Date.now();refreshRemoteLock(n.id)}g.node.style.left=n.x+"px";g.node.style.top=n.y+"px";g.node.style.zIndex=n.z}}});
 window.addEventListener("pointerup",e=>{const g=state.noteGesture;if(g&&g.pointerId===e.pointerId){const n=board().notes.find(x=>x.id===g.id);if(g.dragging&&n){const pos=findClearPosition(n,n.x,n.y);n.x=pos.x;n.y=pos.y;delete n.lock;g.node.classList.remove("dragging");g.node.classList.add("just-dropped");g.node.style.left=n.x+"px";g.node.style.top=n.y+"px";setTimeout(()=>g.node?.classList.remove("just-dropped"),320);safeSave();remoteWriteNote(n);releaseRemoteLock(n.id)}else if(n){selectNote(n.id,true);releaseRemoteLock(n.id)}state.noteGesture=null;if(state.remote.pendingRender)renderDeferred()}});
 window.addEventListener("pointercancel",()=>{if(state.noteGesture){const n=board().notes.find(x=>x.id===state.noteGesture.id);if(n)delete n.lock;state.noteGesture=null;releaseRemoteLock(n?.id);if(state.remote.pendingRender)renderDeferred();else render()}});
 
@@ -1276,14 +1740,26 @@ function findClearPosition(n,x,y){const others=board().notes.filter(o=>o.id!==n.
 
 function selectNote(noteId,showTools=true){state.selected=noteId;const n=board().notes.find(x=>x.id===noteId),editable=n&&canEditNote(n);notesLayer.querySelectorAll(".note").forEach(x=>{x.classList.toggle("selected",x.dataset.id===noteId);x.classList.toggle("readonly-selected",x.dataset.id===noteId&&!editable)});if(showTools){$("noteToolbar").classList.remove("hidden");const editBtn=$("noteToolbar").querySelector('[data-action="edit"]'),delBtn=$("noteToolbar").querySelector('[data-action="delete"]');editBtn.classList.toggle("hidden",!editable);delBtn.classList.toggle("hidden",!editable);positionToolbar()}else $("noteToolbar").classList.add("hidden")}
 function deselect(clear=true){if(clear)state.selected=null;notesLayer.querySelectorAll(".note.selected").forEach(x=>x.classList.remove("selected"));$("noteToolbar").classList.add("hidden");closePalette()}
-function positionToolbar(){if(!state.selected||$("noteToolbar").classList.contains("hidden"))return;const n=notesLayer.querySelector(`[data-id="${state.selected}"]`);if(!n)return;const r=n.getBoundingClientRect(),t=$("noteToolbar"),w=t.offsetWidth||180;t.style.left=clamp(r.left+(r.width-w)/2,8,innerWidth-w-8)+"px";t.style.top=Math.max(66,r.top-48)+"px"}
-$("noteToolbar").addEventListener("pointerdown",e=>e.stopPropagation());$("noteToolbar").addEventListener("click",e=>{const a=e.target.dataset.action;if(!a)return;if(a==="edit")openEditor(state.selected);if(a==="color")openPalette();if(a==="delete")removeSelected()});
-function openPalette(){if(!canStudentModify()){toast("授業は終了しています");return}const p=$("palette");p.innerHTML="";const n=board().notes.find(x=>x.id===state.selected);if(!n)return;for(const c of COLORS){const b=document.createElement("button");b.className="color-dot"+(c===n.color?" active":"");b.style.background=c;b.ariaLabel="付箋の色";b.onclick=()=>{n.color=c;const node=notesLayer.querySelector(`[data-id="${n.id}"]`);if(node)node.style.background=c;closePalette();safeSave();remoteWriteNote(n)};p.appendChild(b)}const r=$("noteToolbar").getBoundingClientRect();p.style.left=clamp(r.left,8,innerWidth-190)+"px";p.style.top=r.bottom+6+"px";p.classList.remove("hidden")}
+function positionToolbar(){
+  if(!state.selected||$("noteToolbar").classList.contains("hidden"))return;
+  const n=notesLayer.querySelector(`[data-id="${state.selected}"]`);if(!n)return;
+  const r=n.getBoundingClientRect(),t=$("noteToolbar"),w=t.offsetWidth||218,h=t.offsetHeight||52,gap=10;
+  const roomAbove=r.top-62,roomBelow=innerHeight-r.bottom-12;
+  const placeBelow=roomAbove<h+gap&&roomBelow>=h+gap;
+  t.classList.toggle("below",placeBelow);t.classList.toggle("above",!placeBelow);
+  t.style.left=clamp(r.left+(r.width-w)/2,10,innerWidth-w-10)+"px";
+  t.style.top=(placeBelow?Math.min(innerHeight-h-10,r.bottom+gap):Math.max(68,r.top-h-gap))+"px"
+}
+$("noteToolbar").addEventListener("pointerdown",e=>e.stopPropagation());$("noteToolbar").addEventListener("click",e=>{const button=e.target.closest("button[data-action]");if(!button)return;const a=button.dataset.action;if(a==="edit")openEditor(state.selected);if(a==="color")openPalette();if(a==="delete")removeSelected()});
+function openPalette(){if(!canStudentModify()){toast("授業は終了しています");return}const p=$("palette");p.innerHTML="";const n=board().notes.find(x=>x.id===state.selected);if(!n)return;for(const c of COLORS){const b=document.createElement("button");b.className="color-dot"+(c===n.color?" active":"");b.style.background=c;b.ariaLabel="付箋の色";b.onclick=()=>{n.color=c;const node=notesLayer.querySelector(`[data-id="${n.id}"]`);if(node)node.style.background=c;closePalette();safeSave();remoteWriteNote(n)};p.appendChild(b)}const r=$("noteToolbar").getBoundingClientRect();p.classList.remove("hidden");
+  const pw=p.offsetWidth||190,ph=p.offsetHeight||50;
+  p.style.left=clamp(r.left+(r.width-pw)/2,10,innerWidth-pw-10)+"px";
+  p.style.top=(innerHeight-r.bottom>ph+12?r.bottom+7:Math.max(68,r.top-ph-7))+"px"}
 function closePalette(){$("palette").classList.add("hidden")}
 function removeSelected(){if(!state.selected)return;const i=board().notes.findIndex(n=>n.id===state.selected);if(i<0)return;if(!canEditNote(board().notes[i])){toast("この付箋は作成者だけが削除できます");return}state.deleted={boardId:board().id,note:board().notes[i]};const deletedId=board().notes[i].id;board().notes.splice(i,1);deselect();render();remoteDeleteNote(deletedId);toast("付箋を削除しました",true)}
 
 /* canvas gestures: pen, pan, double tap, pinch */
-viewport.addEventListener("pointerdown",e=>{
+viewport.addEventListener("pointerdown",e=>{if(!emptyState.classList.contains("hidden"))dismissEmptyGuide(true);
   if(e.target.closest("button"))return;
   cancelViewAnimation();try{viewport.setPointerCapture?.(e.pointerId)}catch{}
   state.pointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
@@ -1322,14 +1798,28 @@ function dist(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}function center(a,b){retur
 function zoomAt(f,x,y){const old=state.zoom,nz=clamp(old*f,.2,2.2),r=viewport.getBoundingClientRect(),wx=(x-r.left-state.panX)/old,wy=(y-r.top-state.panY)/old;state.zoom=nz;state.panX=x-r.left-wx*nz;state.panY=y-r.top-wy*nz;applyTransform()}
 
 /* editor */
-function openEditor(noteId,pos,clientX,clientY){if(!noteId&&!canCreateNote()){toast(state.session.status==="ended"?"授業は終了しています":"現在、付箋の受付を停止しています");return}const n=noteId?board().notes.find(x=>x.id===noteId):null;if(n&&!canEditNote(n)){toast("この付箋は作成者だけが編集できます");return}deselect(false);state.editorOpenedAt=Date.now();state.editorId=n?.id||null;state.editorPos=n?{x:n.x,y:n.y}:{x:clamp(pos.x,0,WORLD_W-NOTE_W),y:clamp(pos.y,0,WORLD_H-NOTE_H)};state.editorColor=n?.color||COLORS[0];$("noteText").value=n?.text||"";renderEditorColors();updateCount();$("editorBackdrop").classList.remove("hidden");const ed=$("noteEditor");ed.classList.remove("hidden");if(innerWidth>900){ed.style.left=clamp((clientX||innerWidth/2)-165,10,innerWidth-340)+"px";ed.style.top=clamp((clientY||innerHeight/2)-70,70,innerHeight-260)+"px"}setTimeout(()=>$("noteText").focus(),20)}
-function closeEditor(){$("noteEditor").classList.add("hidden");$("editorBackdrop").classList.add("hidden");state.editorId=null}
-function renderEditorColors(){const c=$("editorColors");c.innerHTML="";for(const color of COLORS){const b=document.createElement("button");b.className="color-dot"+(state.editorColor===color?" active":"");b.style.background=color;b.onclick=()=>{state.editorColor=color;renderEditorColors()};c.appendChild(b)}}
-function updateCount(){$("charCount").textContent=$("noteText").value.length+" / 40"}
-$("noteText").addEventListener("input",updateCount);$("noteText").addEventListener("keydown",e=>{if(e.key==="Escape")closeEditor();if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();saveEditor()}});$("cancelEdit").onclick=closeEditor;$("editorBackdrop").onclick=()=>{if(Date.now()-state.editorOpenedAt>400)closeEditor()};$("saveEdit").onclick=saveEditor;
+function openEditor(noteId,pos,clientX,clientY){if(!noteId&&!canCreateNote()){toast(state.session.status==="ended"?"授業は終了しています":"現在、付箋の受付を停止しています");return}const n=noteId?board().notes.find(x=>x.id===noteId):null;if(n&&!canEditNote(n)){toast("この付箋は作成者だけが編集できます");return}deselect(false);state.editorOpenedAt=Date.now();state.editorId=n?.id||null;state.editorPos=n?{x:n.x,y:n.y}:{x:clamp(pos.x,0,WORLD_W-NOTE_W),y:clamp(pos.y,0,WORLD_H-NOTE_H)};state.editorColor=n?.color||COLORS[0];$("noteEditorTitle").textContent=n?"付箋を編集":"付箋を追加";$("saveEdit").textContent=n?"保存":"貼る";
+$("deleteFromEditor").classList.toggle("hidden",!n);$("noteText").value=n?.text||"";renderEditorColors();updateCount();$("editorBackdrop").classList.remove("hidden");const ed=$("noteEditor");ed.classList.remove("hidden");document.body.classList.add("editor-open");if(innerWidth>900){ed.style.left=clamp((clientX||innerWidth/2)-165,10,innerWidth-340)+"px";ed.style.top=clamp((clientY||innerHeight/2)-70,70,innerHeight-260)+"px"}setTimeout(()=>$("noteText").focus(),20)}
+function closeEditor(){$("noteEditor").classList.add("hidden");$("editorBackdrop").classList.add("hidden");state.editorId=null;document.body.classList.remove("editor-open")}
+function renderEditorColors(){const c=$("editorColors");c.innerHTML="";for(const color of COLORS){const b=document.createElement("button");b.className="color-dot"+(state.editorColor===color?" active":"");b.style.background=color;b.setAttribute("aria-label","付箋の色を選択");b.setAttribute("aria-pressed",state.editorColor===color?"true":"false");b.onclick=()=>{state.editorColor=color;renderEditorColors()};c.appendChild(b)}}
+function updateCount(){
+  const len=$("noteText").value.length,count=$("charCount"),save=$("saveEdit");
+  count.textContent=len+" / 40";count.classList.toggle("near-limit",len>=32);count.classList.toggle("at-limit",len>=40);
+  save.disabled=!$("noteText").value.trim()
+}
+$("noteText").addEventListener("input",updateCount);$("noteText").addEventListener("keydown",e=>{if(e.key==="Escape")closeEditor();if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();saveEditor()}});$("deleteFromEditor").onclick=()=>{
+  const noteId=state.editorId;if(!noteId)return;
+  const n=board().notes.find(x=>x.id===noteId);
+  if(!n||!canEditNote(n)){toast("この付箋は削除できません");return}
+  openConfirm("付箋を削除","この付箋を削除します。",()=>{
+    const i=board().notes.findIndex(x=>x.id===noteId);if(i<0)return;
+    board().notes.splice(i,1);closeEditor();render();remoteDeleteNote(noteId);toast("付箋を削除しました")
+  })
+};
+$("cancelEdit").onclick=closeEditor;$("editorClose").onclick=closeEditor;$("editorBackdrop").onclick=()=>{if(Date.now()-state.editorOpenedAt>400)closeEditor()};$("saveEdit").onclick=saveEditor;
 function saveEditor(){if(!state.editorId&&!canCreateNote()){closeEditor();toast("現在、付箋は追加できません");return}const text=$("noteText").value.trim();if(!text)return;let changed=null;
 if(state.editorId){const n=board().notes.find(x=>x.id===state.editorId);if(n){n.text=text;n.color=state.editorColor;changed=n}}
-else{const n={id:id(),text,color:state.editorColor,x:state.editorPos.x,y:state.editorPos.y,z:Math.max(1,...board().notes.map(x=>x.z||1))+1,owner:state.remote.user?.uid||CLIENT_ID};const p=findClearPosition(n,n.x,n.y);n.x=p.x;n.y=p.y;board().notes.push(n);state.lastCreatedNoteId=n.id;changed=n}
+else{const n={id:id(),text,color:state.editorColor,x:state.editorPos.x,y:state.editorPos.y,z:Math.max(1,...board().notes.map(x=>x.z||1))+1,owner:state.remote.user?.uid||CLIENT_ID};const p=findClearPosition(n,n.x,n.y);n.x=p.x;n.y=p.y;board().notes.push(n);state.lastCreatedNoteId=n.id;state.guideSeen.add(board().id);saveGuideSeen();changed=n}
 closeEditor();render();if(changed)remoteWriteNote(changed)}
 
 
@@ -1570,7 +2060,18 @@ function applyRole(){
 
 
 
-safeLoad();applyRole();$("eraserCursor").style.width="84px";$("eraserCursor").style.height="84px";$("emptyMain").textContent=navigator.maxTouchPoints>0?"空白を2回タップ":"空白をダブルクリック";comfortableView();render();initFirebase();window.addEventListener("resize",()=>{if(!board().notes.length)comfortableView();else applyTransform()});
+loadGuideSeen();
+if(window.visualViewport){
+  const syncEditorViewport=()=>{
+    if($("noteEditor").classList.contains("hidden")||innerWidth>900)return;
+    const vv=visualViewport,keyboardGap=Math.max(0,innerHeight-(vv.height+vv.offsetTop));
+    $("noteEditor").style.bottom=`calc(${Math.max(10,keyboardGap+10)}px + env(safe-area-inset-bottom,0px))`
+  };
+  visualViewport.addEventListener("resize",syncEditorViewport);
+  visualViewport.addEventListener("scroll",syncEditorViewport)
+}
+
+safeLoad();applyRole();$("eraserCursor").style.width="84px";$("eraserCursor").style.height="84px";$("emptyMain").textContent=navigator.maxTouchPoints>0?"空白を2回タップ":"空白をダブルクリック";comfortableView();render();initFirebase();window.addEventListener("resize",()=>{if(!board().notes.length)comfortableView();else applyTransform();positionToolbar()});window.addEventListener("orientationchange",()=>setTimeout(positionToolbar,180));
 })();
 </script>
 </body></html>
