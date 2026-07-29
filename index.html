@@ -1276,6 +1276,50 @@ body.erasing .pen-hud{
   border-color:transparent;
 }
 
+
+/* Role verification and stable pointer interaction */
+.note{
+  -webkit-user-select:none;
+  user-select:none;
+  touch-action:none;
+  cursor:grab;
+}
+.note.dragging{cursor:grabbing}
+body:not(.teacher-ui) #openPanel,
+body:not(.teacher-ui) #penHud{display:none!important}
+
+/* Seven-day room expiry */
+.expiry-card{
+  display:grid;
+  grid-template-columns:auto 1fr;
+  align-items:center;
+  gap:3px 10px;
+  margin-bottom:10px;
+  padding:12px 13px;
+  border:1px solid #dfe6e3;
+  border-radius:13px;
+  background:#f4f8f6;
+}
+.expiry-card>span{
+  grid-row:1 / 3;
+  display:grid;
+  place-items:center;
+  min-width:56px;
+  height:34px;
+  padding:0 8px;
+  border-radius:10px;
+  background:#e2eee8;
+  color:#397158;
+  font-size:10px;
+  font-weight:820;
+}
+.expiry-card strong{color:#34433c;font-size:14px;font-weight:800}
+.expiry-card small{color:#75827b;font-size:10px;line-height:1.35}
+.expiry-card.warning{border-color:#ead9aa;background:#fff9e8}
+.expiry-card.warning>span{background:#f7e9b8;color:#84610c}
+.expiry-card.expired{border-color:#efd6da;background:#fff5f6}
+.expiry-card.expired>span{background:#f4dfe3;color:#9e3b49}
+
 </style>
 </head>
 <body>
@@ -1355,6 +1399,11 @@ body.erasing .pen-hud{
     <button id="exportAllPdf" class="panel-action">全ボードをPDF保存</button>
   </section>
   <section class="section section-share"><h3>共有</h3>
+    <div id="expiryCard" class="expiry-card hidden" aria-live="polite">
+      <span>自動削除</span>
+      <strong id="expiryDate">—</strong>
+      <small id="expiryNote">共有ルームは作成から7日後に削除されます</small>
+    </div>
     <button id="createRoom" class="panel-action">共有ルームを作成</button>
     <button id="panelShare" class="panel-action">生徒用URLを表示</button>
     <button id="deleteSharedUrl" class="panel-action danger destructive-action">このURLを削除</button>
@@ -1445,6 +1494,7 @@ const CLIENT_ID=(()=>{try{let id=sessionStorage.getItem("wb-client");if(!id){id=
 const WORLD_W=4000,WORLD_H=3000,NOTE_W=188,NOTE_H=116,STORAGE_VERSION=5;
 const ZOOM_STEPS=[.25,.40,.60,.90,1.35,2.00];
 const FIREBASE_SDK_VERSION="12.16.0";
+const ROOM_TTL_MS=7*24*60*60*1000;
 const BUILT_IN_FIREBASE_CONFIG={
   apiKey:"AIzaSyAT-r8C2W13tw2cRgq54kIvplni5JT6jS0",
   authDomain:"whiteboard-c36aa.firebaseapp.com",
@@ -1454,18 +1504,47 @@ const BUILT_IN_FIREBASE_CONFIG={
   messagingSenderId:"946756541229",
   appId:"1:946756541229:web:e994f920781c5107a551a4"
 };
-const ROOM_ID=(()=>{const m=location.hash.match(/(?:^#|&)room=([A-Za-z0-9_-]+)/);return m?m[1]:null})();
+function routeValue(name){
+  const m=location.hash.match(new RegExp(`(?:^#|&)${name}=([^&]+)`));
+  return m?decodeURIComponent(m[1]):null
+}
+const ROOM_ID=routeValue("room");
 const IS_STUDENT=/(?:^#|&)role=student(?:&|$)/.test(location.hash);
+const ADMIN_KEY=routeValue("admin");
+const INITIAL_ROUTE={room:ROOM_ID,student:IS_STUDENT,admin:ADMIN_KEY};
+window.addEventListener("hashchange",()=>location.reload());
+window.addEventListener("pageshow",e=>{
+  if(!e.persisted)return;
+  const current={room:routeValue("room"),student:/(?:^#|&)role=student(?:&|$)/.test(location.hash),admin:routeValue("admin")};
+  if(current.room!==INITIAL_ROUTE.room||current.student!==INITIAL_ROUTE.student||current.admin!==INITIAL_ROUTE.admin)location.reload()
+});
 const HASH_CONFIG=(()=>{try{const m=location.hash.match(/(?:^#|&)cfg=([^&]+)/);if(!m)return null;const s=m[1].replace(/-/g,"+").replace(/_/g,"/");return JSON.parse(decodeURIComponent(escape(atob(s+"=".repeat((4-s.length%4)%4)))))}catch{return null}})();
 const $=id=>document.getElementById(id),viewport=$("viewport"),world=$("world"),notesLayer=$("notesLayer"),drawingLayer=$("drawingLayer"),templateLayer=$("templateLayer"),emptyState=$("emptyState");
 const state={boards:[newBoard("ボード1")],current:0,zoom:1,panX:0,panY:0,selected:null,editorId:null,editorPos:null,editorColor:COLORS[0],noteGesture:null,canvasGesture:null,pointers:new Map(),pinch:null,lastTap:null,deleted:null,toastTimer:null,editorOpenedAt:0,touchOpenedAt:0,textAction:null,confirmAction:null,viewInitialized:false,viewAnimation:null,lastCreatedNoteId:null,lastRemoteSnapshot:new Map(),penColor:null,penMode:"move",drawingGesture:null,eraserGesture:null,session:{status:"active",studentInputOpen:true},exporting:false,guideTimer:null,guideSeen:new Set(),
-remote:{enabled:false,ready:false,roomId:ROOM_ID,user:null,db:null,api:null,app:null,unsubs:[],locks:new Map(),presenceRef:null,suppress:false,ownerUid:null,pendingRender:false,connected:false}};
+remote:{enabled:false,ready:false,roomId:ROOM_ID,user:null,db:null,api:null,app:null,unsubs:[],locks:new Map(),presenceRef:null,suppress:false,ownerUid:null,pendingRender:false,connected:false,adminAuthorized:false,adminKey:ADMIN_KEY||null,expiresAt:null,expiryTimer:null}};
 function id(){return crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(36).slice(2)}
 function newBoard(name){return{id:id(),name,template:"blank",labels:{},notes:[],drawings:[]}}
 function board(){return state.boards[state.current]}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function roomCacheKey(roomId=state.remote.roomId||ROOM_ID){return roomId?`wb-v2:room:${roomId}`:"wb-v2"}
+function adminStorageKey(roomId){return`wb-admin-key:${roomId}`}
+function storedAdminKey(roomId){try{return localStorage.getItem(adminStorageKey(roomId))||null}catch{return null}}
+function saveAdminKey(roomId,key){if(!roomId||!key)return;try{localStorage.setItem(adminStorageKey(roomId),key)}catch{}}
+function clearAdminKey(roomId){try{localStorage.removeItem(adminStorageKey(roomId))}catch{}}
+function randomAdminKey(){
+  const bytes=crypto.getRandomValues(new Uint8Array(24));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")
+}
+function teacherRoomUrl(roomId,key){
+  return location.href.split("#")[0]+`#room=${encodeURIComponent(roomId)}&admin=${encodeURIComponent(key)}`
+}
+function installTeacherRoute(roomId,key){
+  if(!roomId||!key||IS_STUDENT)return;
+  const next=teacherRoomUrl(roomId,key);
+  if(location.href!==next)history.replaceState(null,"",next)
+}
 function safeLoad(){try{
-  const d=JSON.parse(localStorage.getItem("wb-v2"));
+  const d=JSON.parse(localStorage.getItem(roomCacheKey()));
   if(d?.boards?.length){
     const oldVersion=d.version||2;
     d.boards.forEach(b=>{
@@ -1486,7 +1565,7 @@ function safeLoad(){try{
   }
 }catch{}}
 function safeSave(){
-  try{localStorage.setItem("wb-v2",JSON.stringify({version:STORAGE_VERSION,boards:state.boards,current:state.current,title:$("roomTitle").textContent,session:state.session}))}catch{}
+  try{localStorage.setItem(roomCacheKey(),JSON.stringify({version:STORAGE_VERSION,boards:state.boards,current:state.current,title:$("roomTitle").textContent,session:state.session}))}catch{}
   broadcastLocal();
 }
 
@@ -1519,17 +1598,63 @@ function firebaseConfig(){
 function encodeConfig(cfg){try{return btoa(unescape(encodeURIComponent(JSON.stringify(cfg)))).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/g,"")}catch{return""}}
 function showConnection(stateName,title,message,retry=false){const o=$("connectionOverlay");o.className="connection-overlay "+(stateName||"");$("connectionTitle").textContent=title;$("connectionMessage").textContent=message;$("connectionRetry").classList.toggle("hidden",!retry)}
 function hideConnection(){$("connectionOverlay").classList.add("hidden")}
-function isTeacher(){return !state.remote.ready?!IS_STUDENT:state.remote.user?.uid===state.remote.ownerUid}
+function isTeacher(){
+  if(IS_STUDENT)return false;
+  if(state.remote.ready)return state.remote.adminAuthorized===true;
+  return !ROOM_ID
+}
+function roomIsActive(){
+  return !state.remote.expiresAt||Date.now()<state.remote.expiresAt
+}
+function formatExpiryDate(ms){
+  if(!Number.isFinite(ms))return"—";
+  return new Intl.DateTimeFormat("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"}).format(new Date(ms))
+}
+function expiryRemainingText(ms){
+  const remaining=ms-Date.now();
+  if(remaining<=0)return"期限切れ";
+  const hours=Math.ceil(remaining/3600000);
+  if(hours<=24)return`残り約${hours}時間`;
+  return`残り${Math.ceil(hours/24)}日`
+}
+function updateExpiryUi(){
+  const card=$("expiryCard");if(!card)return;
+  const expiresAt=Number(state.remote.expiresAt)||0;
+  const visible=!!(state.remote.roomId&&expiresAt&&isTeacher());
+  card.classList.toggle("hidden",!visible);
+  if(!visible)return;
+  const remaining=expiresAt-Date.now();
+  $("expiryDate").textContent=formatExpiryDate(expiresAt);
+  $("expiryNote").textContent=remaining<=0?"期限切れです":`${expiryRemainingText(expiresAt)}・作成から7日で完全削除`;
+  card.classList.toggle("warning",remaining>0&&remaining<=24*60*60*1000);
+  card.classList.toggle("expired",remaining<=0);
+}
+function scheduleExpiryCheck(){
+  clearTimeout(state.remote.expiryTimer);state.remote.expiryTimer=null;
+  updateExpiryUi();
+  const expiresAt=Number(state.remote.expiresAt)||0;
+  if(!expiresAt)return;
+  const remaining=expiresAt-Date.now();
+  if(remaining<=0){
+    state.remote.ready=false;state.remote.adminAuthorized=false;applyRole();
+    showConnection("error","この共有URLは期限切れです","共有ルームは作成から7日で自動削除されます。新しいURLを受け取ってください。");
+    return
+  }
+  state.remote.expiryTimer=setTimeout(scheduleExpiryCheck,Math.min(60000,remaining+100))
+}
+
 function lessonActive(){return state.session.status!=="ended"}
-function canCreateNote(){return isTeacher()||(lessonActive()&&state.session.studentInputOpen)}
-function canStudentModify(){return isTeacher()||lessonActive()}
+function canCreateNote(){return roomIsActive()&&(isTeacher()||(lessonActive()&&state.session.studentInputOpen))}
+function canStudentModify(){return roomIsActive()&&(isTeacher()||lessonActive())}
 function canEditNote(n){return canStudentModify()&&(!state.remote.ready||isTeacher()||n.owner===state.remote.user?.uid)}
-function renderDeferred(){if(state.noteGesture?.dragging||state.drawingGesture){state.remote.pendingRender=true;return}state.remote.pendingRender=false;render()}
+function renderDeferred(){if(state.noteGesture||state.drawingGesture||state.eraserGesture){state.remote.pendingRender=true;return}state.remote.pendingRender=false;render()}
 
 function randomRoomId(){return Array.from(crypto.getRandomValues(new Uint8Array(10)),x=>"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"[x%62]).join("")}
 function serializeMeta(){
   const boards={};state.boards.forEach((b,i)=>boards[b.id]={name:b.name,template:normalizeTemplate(b.template),index:i});
-  return{title:$("roomTitle").textContent,boards,sessionStatus:state.session.status,studentInputOpen:state.session.studentInputOpen,updatedAt:Date.now()}
+  const meta={title:$("roomTitle").textContent,boards,sessionStatus:state.session.status,studentInputOpen:state.session.studentInputOpen,updatedAt:Date.now()};
+  if(Number.isFinite(state.remote.expiresAt))meta.expiresAt=state.remote.expiresAt;
+  return meta
 }
 function serializeNote(n,b){return{boardId:b.id,text:n.text,color:n.color,x:n.x,y:n.y,z:n.z||1,owner:n.owner||CLIENT_ID,updatedAt:Date.now()}}
 function serializeStroke(st,b){return{
@@ -1551,35 +1676,96 @@ async function initFirebase(){
     const dbApi=await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-database.js`);
     const app=appApi.initializeApp(cfg,"whiteboard-"+Math.random().toString(36).slice(2));
     const auth=authApi.getAuth(app);
-    const cred=await authApi.signInAnonymously(auth);
-    state.remote.app=app;state.remote.db=dbApi.getDatabase(app);state.remote.user=cred.user;
+    try{await authApi.setPersistence(auth,authApi.browserLocalPersistence)}catch(e){console.warn("Auth persistence unavailable",e)}
+    if(typeof auth.authStateReady==="function")await auth.authStateReady();
+    const user=auth.currentUser||(await authApi.signInAnonymously(auth)).user;
+    state.remote.app=app;state.remote.db=dbApi.getDatabase(app);state.remote.user=user;
     state.remote.api=dbApi;state.remote.enabled=true;
     if(ROOM_ID) await connectRoom(ROOM_ID);
     else setSyncBadge("online","接続可能");
     return true
   }catch(err){
-    console.error(err);setSyncBadge("offline","接続失敗");if(ROOM_ID)showConnection("error","接続できませんでした","通信環境またはFirebase設定を確認してください。",true);toast("Firebaseへ接続できません");
+    console.error(err);setSyncBadge("offline","接続失敗");
+    const denied=err?.code==="PERMISSION_DENIED"||err?.code==="permission-denied"||String(err?.message||"").toLowerCase().includes("permission");
+    if(ROOM_ID)showConnection("error",denied?"この共有URLは利用できません":"接続できませんでした",denied?"期限切れ、削除済み、またはアクセス権のないURLです。教師から新しいURLを受け取ってください。":"通信環境またはFirebase設定を確認してください。",!denied);
+    toast(denied?"共有URLを利用できません":"Firebaseへ接続できません");
     return false
   }
 }
+async function claimRoomAdmin(roomId,key){
+  if(!roomId||!key||IS_STUDENT||!state.remote.enabled)return false;
+  const a=state.remote.api,db=state.remote.db,uid=state.remote.user.uid;
+  try{
+    await a.set(a.ref(db,`roomAdminClaims/${roomId}/${uid}`),key);
+    state.remote.adminKey=key;saveAdminKey(roomId,key);
+    return true
+  }catch(e){
+    console.warn("Admin claim failed",e);
+    return false
+  }
+}
+async function ensureRoomAdmin(roomId,ownerUid){
+  if(IS_STUDENT)return false;
+  const uid=state.remote.user.uid,ownerMatch=uid===ownerUid;
+  let key=ADMIN_KEY||storedAdminKey(roomId)||state.remote.adminKey;
+  if(ownerMatch){
+    if(!key)key=randomAdminKey();
+    try{
+      await state.remote.api.set(state.remote.api.ref(state.remote.db,`roomSecrets/${roomId}`),key);
+      await state.remote.api.set(state.remote.api.ref(state.remote.db,`roomAdminClaims/${roomId}/${uid}`),key);
+      state.remote.adminKey=key;saveAdminKey(roomId,key);installTeacherRoute(roomId,key);
+      return true
+    }catch(e){
+      console.warn("Owner admin setup failed",e);
+      return true
+    }
+  }
+  if(key){
+    const claimed=await claimRoomAdmin(roomId,key);
+    if(claimed){installTeacherRoute(roomId,key);return true}
+  }
+  return false
+}
 async function createRemoteRoom(){
   if(!state.remote.enabled){const ok=await initFirebase();if(!ok)return}
-  const roomId=randomRoomId(),a=state.remote.api,db=state.remote.db,uid=state.remote.user.uid;
-  await a.set(a.ref(db,`rooms/${roomId}/meta`),{...serializeMeta(),ownerUid:uid,createdAt:Date.now()});
+  const roomId=randomRoomId(),adminKey=randomAdminKey(),a=state.remote.api,db=state.remote.db,uid=state.remote.user.uid;
+  const createdAt=Date.now(),expiresAt=createdAt+ROOM_TTL_MS;
+  state.remote.expiresAt=expiresAt;
+  await a.set(a.ref(db,`rooms/${roomId}/meta`),{...serializeMeta(),ownerUid:uid,createdAt,expiresAt});
+  await a.set(a.ref(db,`roomSecrets/${roomId}`),adminKey);
+  await a.set(a.ref(db,`roomAdminClaims/${roomId}/${uid}`),adminKey);
+  await a.set(a.ref(db,`roomExpirations/${roomId}`),expiresAt);
   const updates={};
   state.boards.forEach(b=>{b.notes.forEach(n=>{if(!n.owner||n.owner===CLIENT_ID)n.owner=uid;updates[`rooms/${roomId}/notes/${n.id}`]=serializeNote(n,b)});(b.drawings||[]).forEach(st=>{st.owner=uid;updates[`rooms/${roomId}/drawings/${st.id}`]=serializeStroke(st,b)})});
   if(Object.keys(updates).length)await a.update(a.ref(db),updates);
-  history.replaceState(null,"",location.href.split("#")[0]+`#room=${roomId}`);
+  state.remote.adminKey=adminKey;state.remote.adminAuthorized=true;saveAdminKey(roomId,adminKey);
+  installTeacherRoute(roomId,adminKey);
   await connectRoom(roomId);
-  toast("共有ルームを作成しました");
+  safeSave();toast("共有ルームを作成しました。有効期限は7日間です");
 }
 async function connectRoom(roomId){
   const a=state.remote.api,db=state.remote.db,uid=state.remote.user.uid;
   const metaRef=a.ref(db,`rooms/${roomId}/meta`);
   const initialMeta=await a.get(metaRef);
   if(!initialMeta.exists()){state.remote.ready=false;setSyncBadge("offline","ルームなし");showConnection("error","共有ルームが見つかりません","URLが古いか、ルームが削除されています。教師から新しいURLを受け取ってください。");return}
-  state.remote.ownerUid=initialMeta.val().ownerUid||null;
-  state.remote.roomId=roomId;state.remote.ready=true;
+  const initial=initialMeta.val();
+  state.remote.ownerUid=initial.ownerUid||null;
+  state.remote.roomId=roomId;
+  state.remote.expiresAt=Number(initial.expiresAt)||null;
+  state.remote.adminAuthorized=await ensureRoomAdmin(roomId,state.remote.ownerUid);
+  if(!state.remote.expiresAt&&state.remote.adminAuthorized){
+    const now=Date.now(),expiresAt=now+ROOM_TTL_MS;
+    await a.update(metaRef,{createdAt:Number(initial.createdAt)||now,expiresAt,updatedAt:now});
+    await a.set(a.ref(db,`roomExpirations/${roomId}`),expiresAt);
+    state.remote.expiresAt=expiresAt
+  }
+  if(state.remote.expiresAt&&state.remote.expiresAt<=Date.now()){
+    state.remote.ready=false;state.remote.adminAuthorized=false;applyRole();
+    showConnection("error","この共有URLは期限切れです","作成から7日が経過したため利用できません。教師から新しいURLを受け取ってください。");
+    return
+  }
+  state.remote.ready=true;
+  applyRole();scheduleExpiryCheck();
   setSyncBadge(isTeacher()?"teacher":"student",isTeacher()?"教師・共有中":"参加中");
   state.remote.unsubs.forEach(u=>u&&u());state.remote.unsubs=[];
   const notesRef=a.ref(db,`rooms/${roomId}/notes`);
@@ -1587,19 +1773,21 @@ async function connectRoom(roomId){
   const locksRef=a.ref(db,`rooms/${roomId}/locks`);
   const presenceRef=a.ref(db,`rooms/${roomId}/presence/${uid}_${CLIENT_ID}`);
   state.remote.presenceRef=presenceRef;
-  await a.set(presenceRef,{at:Date.now(),role:IS_STUDENT?"student":"teacher"});
+  await a.set(presenceRef,{at:Date.now(),role:isTeacher()?"teacher":"student"});
   a.onDisconnect(presenceRef).remove();
   state.remote.unsubs.push(a.onValue(metaRef,s=>{
-    const m=s.val();if(!m){showConnection("error","共有ルームが終了しました","教師がルームを削除した可能性があります。");return}
-    state.remote.ownerUid=m.ownerUid||state.remote.ownerUid;state.session={status:m.sessionStatus||"active",studentInputOpen:m.studentInputOpen!==false};
+    const m=s.val();if(!m){state.remote.ready=false;state.remote.adminAuthorized=false;applyRole();showConnection("error","共有ルームが終了しました","教師がルームを削除した可能性があります。");return}
+    state.remote.ownerUid=m.ownerUid||state.remote.ownerUid;state.remote.expiresAt=Number(m.expiresAt)||state.remote.expiresAt;state.session={status:m.sessionStatus||"active",studentInputOpen:m.studentInputOpen!==false};scheduleExpiryCheck();
     const ordered=Object.entries(m.boards||{}).sort((x,y)=>(x[1].index||0)-(y[1].index||0));
+    const activeId=board()?.id,oldIndex=state.current;
     const oldNotes=new Map(state.boards.map(b=>[b.id,b.notes])),oldDrawings=new Map(state.boards.map(b=>[b.id,b.drawings||[]]));
     state.remote.suppress=true;
     state.boards=ordered.map(([id,b])=>({id,name:b.name||"ボード",template:normalizeTemplate(b.template),labels:{},notes:oldNotes.get(id)||[],drawings:oldDrawings.get(id)||[]}));
     if(!state.boards.length)state.boards=[newBoard("ボード1")];
     $("roomTitle").textContent=m.title||"無題のボード";
-    state.current=Math.min(state.current,state.boards.length-1);
-    state.remote.suppress=false;renderDeferred();hideConnection();
+    const retained=state.boards.findIndex(b=>b.id===activeId);
+    state.current=retained>=0?retained:Math.min(oldIndex,state.boards.length-1);
+    state.remote.suppress=false;applyRole();renderDeferred();hideConnection();
   }));
   state.remote.unsubs.push(a.onValue(notesRef,s=>{
     const notes=s.val()||{},byBoard=new Map(state.boards.map(b=>[b.id,[]]));
@@ -1770,6 +1958,7 @@ function updateEmptyGuide(){
 }
 
 function render(){
+applyRole();
 closePalette();
 $("penHud").classList.toggle("hidden",!isTeacher());if(!isTeacher()&&state.penMode!=="move")setPen(null);
 notesLayer.innerHTML="";
@@ -1786,6 +1975,7 @@ $("prevBoard").disabled=state.current===0;
 $("nextBoard").disabled=state.current===state.boards.length-1;
 $("canvasMode").textContent=(navigator.maxTouchPoints>0?"空白を2回タップ":"空白をダブルクリック")+"で追加　・　ドラッグで移動";
 updateLessonUi();
+updateExpiryUi();
 renderTemplates();
 const boardLimit=state.boards.length>=25;$("duplicateStructure").disabled=boardLimit;$("duplicateFull").disabled=boardLimit;
 $("deleteCurrentBoard").disabled=state.boards.length<=1;
@@ -1895,12 +2085,64 @@ function noteNode(n){
 }
 function hashString(s){let h=0;for(let i=0;i<s.length;i++)h=((h<<5)-h+s.charCodeAt(i))|0;return Math.abs(h)}
 
-function noteDown(e){if(e.button!==0)return;if(!canStudentModify()){toast("授業は終了しています");return}e.stopPropagation();closePalette();const n=board().notes.find(x=>x.id===e.currentTarget.dataset.id);if(!n)return;if(n.lock&&n.lock.by!==CLIENT_ID&&n.lock.until>Date.now()){e.currentTarget.classList.add("remote-locked","bump");toast("ほかの人が動かしています");setTimeout(()=>e.currentTarget.classList.remove("bump"),250);return}const p=toWorld(e.clientX,e.clientY);state.noteGesture={id:n.id,node:e.currentTarget,pointerId:e.pointerId,startClientX:e.clientX,startClientY:e.clientY,startWorldX:p.x,startWorldY:p.y,noteX:n.x,noteY:n.y,dragging:false,lockReady:!state.remote.ready,lockDenied:false};
-if(state.remote.ready)acquireRemoteLock(n.id).then(ok=>{if(!state.noteGesture||state.noteGesture.id!==n.id){if(ok)releaseRemoteLock(n.id);return}state.noteGesture.lockReady=ok;state.noteGesture.lockDenied=!ok;if(!ok){toast("ほかの人が動かしています");state.noteGesture=null}});
-e.currentTarget.setPointerCapture(e.pointerId)}
-window.addEventListener("pointermove",e=>{const g=state.noteGesture;if(g&&g.pointerId===e.pointerId){const dx=e.clientX-g.startClientX,dy=e.clientY-g.startClientY,threshold=e.pointerType==="touch"?9:5;if(!g.dragging&&Math.hypot(dx,dy)>threshold){if(!g.lockReady)return;const n=board().notes.find(x=>x.id===g.id);if(!n)return;g.dragging=true;g.touchLift=e.pointerType==="touch"?34/state.zoom:0;n.lock={by:CLIENT_ID,until:Date.now()+2200};n.z=Math.max(1,...board().notes.map(x=>x.z||1))+1;g.node.classList.add("dragging");deselect(false)}if(g.dragging){const n=board().notes.find(x=>x.id===g.id),p=toWorld(e.clientX,e.clientY);if(!n)return;n.x=clamp(g.noteX+(p.x-g.startWorldX),0,WORLD_W-NOTE_W);n.y=clamp(g.noteY+(p.y-g.startWorldY)-(g.touchLift||0),0,WORLD_H-noteHeight(n));n.lock.until=Date.now()+2200;if(state.remote.ready&&(!g.lastLockRefresh||Date.now()-g.lastLockRefresh>900)){g.lastLockRefresh=Date.now();refreshRemoteLock(n.id)}g.node.style.left=n.x+"px";g.node.style.top=n.y+"px";g.node.style.zIndex=n.z}}});
+function beginNoteDrag(g,pointerType){
+  if(!g||g.dragging||!g.lockReady)return false;
+  const n=board().notes.find(x=>x.id===g.id);if(!n)return false;
+  g.dragging=true;g.touchLift=pointerType==="touch"?34/state.zoom:0;
+  n.lock={by:CLIENT_ID,until:Date.now()+2200};
+  n.z=Math.max(1,...board().notes.map(x=>x.z||1))+1;
+  g.node.classList.add("dragging");deselect(false);return true
+}
+function moveDraggedNote(g,clientX,clientY){
+  if(!g?.dragging)return;
+  const n=board().notes.find(x=>x.id===g.id),p=toWorld(clientX,clientY);if(!n)return;
+  n.x=clamp(g.noteX+(p.x-g.startWorldX),0,WORLD_W-NOTE_W);
+  n.y=clamp(g.noteY+(p.y-g.startWorldY)-(g.touchLift||0),0,WORLD_H-noteHeight(n));
+  n.lock.until=Date.now()+2200;
+  if(state.remote.ready&&(!g.lastLockRefresh||Date.now()-g.lastLockRefresh>900)){g.lastLockRefresh=Date.now();refreshRemoteLock(n.id)}
+  g.node.style.left=n.x+"px";g.node.style.top=n.y+"px";g.node.style.zIndex=n.z
+}
+function cancelDeniedNoteDrag(g){
+  if(!g)return;const n=board().notes.find(x=>x.id===g.id);
+  if(n){n.x=g.noteX;n.y=g.noteY;delete n.lock}
+  g.node?.classList.remove("dragging");state.noteGesture=null;render();toast("ほかの人が動かしています")
+}
+function noteDown(e){
+  if(e.button!==0)return;if(!canStudentModify()){toast("授業は終了しています");return}
+  e.preventDefault();e.stopPropagation();closePalette();
+  const n=board().notes.find(x=>x.id===e.currentTarget.dataset.id);if(!n)return;
+  const cached=state.remote.locks.get(n.id);
+  if(cached&&cached.by!==CLIENT_ID&&cached.until>Date.now()){e.currentTarget.classList.add("remote-locked","bump");toast("ほかの人が動かしています");setTimeout(()=>e.currentTarget.classList.remove("bump"),250);return}
+  const p=toWorld(e.clientX,e.clientY);
+  const g=state.noteGesture={id:n.id,node:e.currentTarget,pointerId:e.pointerId,pointerType:e.pointerType,startClientX:e.clientX,startClientY:e.clientY,lastClientX:e.clientX,lastClientY:e.clientY,startWorldX:p.x,startWorldY:p.y,noteX:n.x,noteY:n.y,dragging:false,wantsDrag:false,lockReady:!state.remote.ready||!cached,lockDenied:false};
+  try{e.currentTarget.setPointerCapture(e.pointerId)}catch{}
+  if(state.remote.ready)acquireRemoteLock(n.id).then(ok=>{
+    if(state.noteGesture!==g){if(ok)releaseRemoteLock(n.id);return}
+    if(!ok){cancelDeniedNoteDrag(g);return}
+    g.lockReady=true;
+    if(g.wantsDrag&&beginNoteDrag(g,g.pointerType))moveDraggedNote(g,g.lastClientX,g.lastClientY)
+  })
+}
+window.addEventListener("pointermove",e=>{
+  const g=state.noteGesture;if(!g||g.pointerId!==e.pointerId)return;
+  g.lastClientX=e.clientX;g.lastClientY=e.clientY;
+  const dx=e.clientX-g.startClientX,dy=e.clientY-g.startClientY,threshold=e.pointerType==="touch"?9:4;
+  if(!g.dragging&&Math.hypot(dx,dy)>threshold){
+    g.wantsDrag=true;
+    if(!g.lockReady)return;
+    beginNoteDrag(g,e.pointerType)
+  }
+  moveDraggedNote(g,e.clientX,e.clientY)
+});
 window.addEventListener("pointerup",e=>{const g=state.noteGesture;if(g&&g.pointerId===e.pointerId){const n=board().notes.find(x=>x.id===g.id);if(g.dragging&&n){const pos=findClearPosition(n,n.x,n.y);n.x=pos.x;n.y=pos.y;delete n.lock;g.node.classList.remove("dragging");g.node.classList.add("just-dropped");g.node.style.left=n.x+"px";g.node.style.top=n.y+"px";setTimeout(()=>g.node?.classList.remove("just-dropped"),320);safeSave();remoteWriteNote(n);releaseRemoteLock(n.id)}else if(n){selectNote(n.id,true);releaseRemoteLock(n.id)}state.noteGesture=null;if(state.remote.pendingRender)renderDeferred()}});
-window.addEventListener("pointercancel",()=>{if(state.noteGesture){const n=board().notes.find(x=>x.id===state.noteGesture.id);if(n)delete n.lock;state.noteGesture=null;releaseRemoteLock(n?.id);if(state.remote.pendingRender)renderDeferred();else render()}});
+window.addEventListener("pointercancel",()=>{
+  if(state.noteGesture){
+    const g=state.noteGesture,n=board().notes.find(x=>x.id===g.id);
+    if(n){if(g.dragging){n.x=g.noteX;n.y=g.noteY}delete n.lock}
+    g.node?.classList.remove("dragging");state.noteGesture=null;releaseRemoteLock(n?.id);
+    if(state.remote.pendingRender)renderDeferred();else render()
+  }
+});
 
 function overlap(a,b,x=a.x,y=a.y){const ah=noteHeight(a),bh=noteHeight(b),ix=Math.max(0,Math.min(x+NOTE_W,b.x+NOTE_W)-Math.max(x,b.x)),iy=Math.max(0,Math.min(y+ah,b.y+bh)-Math.max(y,b.y));return(ix*iy)/Math.min(NOTE_W*ah,NOTE_W*bh)}
 function findClearPosition(n,x,y){const others=board().notes.filter(o=>o.id!==n.id),valid=(px,py)=>others.every(o=>overlap(n,o,px,py)<.12);if(valid(x,y))return{x,y};const step=32;for(let ring=1;ring<=12;ring++){const candidates=[];for(let i=-ring;i<=ring;i++){candidates.push([i,-ring],[i,ring],[-ring,i],[ring,i])}for(const [dx,dy] of candidates){const px=clamp(x+dx*step,0,WORLD_W-NOTE_W),py=clamp(y+dy*step,0,WORLD_H-noteHeight(n));if(valid(px,py))return{x:px,y:py}}}return{x,y}}
@@ -2052,12 +2294,20 @@ async function deleteSharedRoom(){
   state.remote.unsubs.forEach(u=>{try{u&&u()}catch{}});
   state.remote.unsubs=[];
   try{if(state.remote.presenceRef)await a.remove(state.remote.presenceRef)}catch{}
-  await a.remove(a.ref(db,`rooms/${room}`));
-  state.remote.ready=false;state.remote.roomId=null;state.remote.ownerUid=null;state.remote.locks=new Map();
+  await a.update(a.ref(db),{
+    [`rooms/${room}`]:null,
+    [`roomAdminClaims/${room}`]:null,
+    [`roomSecrets/${room}`]:null,
+    [`roomExpirations/${room}`]:null
+  });
+  clearAdminKey(room);
+  const localSnapshot=JSON.stringify({version:STORAGE_VERSION,boards:state.boards,current:state.current,title:$("roomTitle").textContent,session:state.session});
+  try{localStorage.setItem("wb-v2",localSnapshot)}catch{}
+  clearTimeout(state.remote.expiryTimer);state.remote.ready=false;state.remote.roomId=null;state.remote.ownerUid=null;state.remote.adminAuthorized=false;state.remote.adminKey=null;state.remote.expiresAt=null;state.remote.expiryTimer=null;state.remote.locks=new Map();
   history.replaceState(null,"",location.href.split("#")[0]);
   setSyncBadge("online","接続可能");
   $("participantCount").textContent="—";
-  safeSave();render()
+  setTimeout(()=>location.reload(),120)
 }
 
 function requestBoardCount(target){
@@ -2250,12 +2500,17 @@ function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;","
 
 $("connectionRetry").onclick=()=>location.reload();
 function applyRole(){
-  document.body.classList.toggle("teacher-ui",!IS_STUDENT);
-  if(!IS_STUDENT)return;
-  $("openPanel").classList.add("hidden");
-  $("penHud").classList.add("hidden");
-  
-  $("titleButton").disabled=true;
+  const teacher=isTeacher();
+  document.body.classList.toggle("teacher-ui",teacher);
+  $("openPanel").classList.toggle("hidden",!teacher);
+  $("penHud").classList.toggle("hidden",!teacher);
+  $("titleButton").disabled=!teacher;
+  if(!teacher){
+    $("sidePanel").classList.remove("open");
+    $("sidePanel").setAttribute("aria-hidden","true");
+    $("panelScrim").classList.add("hidden");
+    if(state.penMode!=="move")setPen(null)
+  }
 }
 
 
